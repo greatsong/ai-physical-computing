@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   site: 'https://greatsong.github.io',
-  base: '/code-human-textbook',
+  base: '/ai-physical-computing',
   server: { port: 4008 },
   integrations: [
     starlight({
