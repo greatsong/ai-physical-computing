@@ -8,7 +8,7 @@
 GitHub Pages로 배포되는 정적 사이트.
 
 - **대상**: 중고등학생 (초심자 대상, 표현은 성숙하게)
-- **하드웨어**: Raspberry Pi Pico WH + Grove Shield + Grove 센서 32종
+- **하드웨어**: Raspberry Pi Pico 2 WH + Grove Shield + Grove 센서 32종
 - **핵심 가치**: 바이브 코딩으로 진입 장벽 낮추기, 대시보드로 성취감, ML로 확장
 
 ## 핵심 컨셉 변화
@@ -87,7 +87,7 @@ GitHub Pages로 배포되는 정적 사이트.
 
 ### 바이브 코딩 도구
 - **추천**: Claude, ChatGPT 등 AI 챗봇
-- **프롬프트 패턴**: "Grove [센서명]을 Pico WH의 [포트]에 연결했어. [원하는 기능]하는 MicroPython 코드 만들어줘"
+- **프롬프트 패턴**: "Grove [센서명]을 Pico 2 WH의 [포트]에 연결했어. [원하는 기능]하는 MicroPython 코드 만들어줘"
 - **학습 포인트**: AI가 생성한 코드를 읽고 이해하기, 오류 수정하기, 요구사항 변경하기
 
 ## 대시보드 활용 전략

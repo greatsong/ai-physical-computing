@@ -25,7 +25,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 | 준비물 | 설명 |
 |--------|------|
-| Raspberry Pi Pico WH + Grove Shield | 하드웨어 (1막과 동일) |
+| Raspberry Pi Pico 2 WH + Grove Shield | 하드웨어 (1막과 동일) |
 | 심박 센서 (Pulse Sensor) | 손가락 끝의 혈류 변화를 감지하는 아날로그 센서입니다. A0 포트에 연결합니다. ([센서 도감에서 자세히 보기](/code-human-textbook/appendix/sensor-catalog/)) |
 | OLED 디스플레이 (SSD1306) | 128x64 픽셀의 작은 화면. I2C 포트에 연결합니다. |
 | AI 챗봇 | Claude, ChatGPT 등 — 바이브 코딩에 사용 |
@@ -109,7 +109,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 ### AI에게 보낼 프롬프트
 
 ```
-Pico WH에 Grove Pulse Sensor(심박 센서)를 A0 포트(GP26)에,
+Pico 2 WH에 Grove Pulse Sensor(심박 센서)를 A0 포트(GP26)에,
 OLED SSD1306을 I2C0(SDA=GP8, SCL=GP9)에 연결했어.
 
 다음 기능을 하는 MicroPython 코드를 만들어줘:

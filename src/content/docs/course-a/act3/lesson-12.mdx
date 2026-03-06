@@ -25,7 +25,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 | 준비물 | 설명 |
 |--------|------|
-| Raspberry Pi Pico WH + Grove Shield | 센서 데이터를 읽고 대시보드를 구동하는 메인 보드예요. |
+| Raspberry Pi Pico 2 WH + Grove Shield | 센서 데이터를 읽고 대시보드를 구동하는 메인 보드예요. |
 | 팀별 선택 센서 (1~3개) | 11차시에서 선택한 센서를 Grove 케이블로 연결해요. |
 | OLED 디스플레이 (SSD1306, I2C) | 128x64 픽셀 화면에 실시간 대시보드를 표시해요. |
 | USB 케이블 | Pico와 PC를 연결하여 serial 통신에 사용해요. |
@@ -51,14 +51,14 @@ mip.install("ssd1306")
 
 **바이브 코딩 프롬프트 작성 요령:**
 
-1. **하드웨어 명시**: "Raspberry Pi Pico WH", "Grove Shield", 센서 이름과 포트
+1. **하드웨어 명시**: "Raspberry Pi Pico 2 WH", "Grove Shield", 센서 이름과 포트
 2. **출력 방식 명시**: "SSD1306 OLED I2C", "128x64 픽셀"
 3. **레이아웃 설명**: "위쪽에 온도 큰 글씨, 아래쪽에 막대그래프"
 4. **갱신 주기**: "1초마다 업데이트"
 5. **추가 요구**: "serial로 PC에도 데이터 전송"
 
 :::tip[프롬프트 예시]
-"Raspberry Pi Pico WH에서 Grove Shield를 사용해요. I2C 포트에 DHT20 온습도 센서와 SSD1306 OLED(128x64)가 연결되어 있어요. A0 포트에 소리 센서가 있어요. OLED에 실시간 대시보드를 만들어주세요. 첫 줄에 온도와 습도를 큰 글씨로, 두 번째 줄에 소음 레벨 막대그래프를, 세 번째 줄에 쾌적도 상태(좋음/보통/나쁨)를 표시해주세요. 1초마다 갱신하고, print()로도 데이터를 출력해주세요. MicroPython으로 작성해주세요."
+"Raspberry Pi Pico 2 WH에서 Grove Shield를 사용해요. I2C 포트에 DHT20 온습도 센서와 SSD1306 OLED(128x64)가 연결되어 있어요. A0 포트에 소리 센서가 있어요. OLED에 실시간 대시보드를 만들어주세요. 첫 줄에 온도와 습도를 큰 글씨로, 두 번째 줄에 소음 레벨 막대그래프를, 세 번째 줄에 쾌적도 상태(좋음/보통/나쁨)를 표시해주세요. 1초마다 갱신하고, print()로도 데이터를 출력해주세요. MicroPython으로 작성해주세요."
 :::
 
 ### Step 2. OLED 종합 대시보드 구현 (15분)
