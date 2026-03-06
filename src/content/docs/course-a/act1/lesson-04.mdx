@@ -37,11 +37,11 @@ import VirtualWiring from '../../../../components/grove/VirtualWiring';
 ### 연결 방법
 
 - **DHT20** → I2C0 포트
-- **OLED** → I2C1 포트
+- **OLED** → I2C0 포트 (DHT20과 같은 포트에 Y-스플리터로 연결하거나, I2C1 포트에 연결)
 - **빛 센서** → A0 포트
 
 :::tip[I2C 버스 공유]
-DHT20(주소 0x38)과 OLED(주소 0x3C)는 둘 다 I2C 통신을 사용합니다. 주소가 다르기 때문에 같은 I2C 버스에 연결해도 구분됩니다. Grove Shield에는 I2C 포트가 2개 있으니 하나씩 연결하면 편합니다.
+DHT20(주소 0x38)과 OLED(주소 0x3C)는 둘 다 I2C 통신을 사용하지만 주소가 다릅니다. 코드에서 `I2C(0)`으로 같은 버스를 공유하므로, **두 장치를 같은 I2C0 버스에 연결**해야 합니다. Grove Shield의 I2C0 포트가 1개뿐이라면, I2C Y-스플리터 케이블을 사용하거나 I2C1 포트에 OLED를 연결한 뒤 코드의 I2C 번호를 수정하세요.
 :::
 
 ### 보드 포트 맵
@@ -51,22 +51,23 @@ DHT20(주소 0x38)과 OLED(주소 0x3C)는 둘 다 I2C 통신을 사용합니다
 <GroveShieldMap
   client:load
   connectedSensors={[
-    { port: 'I2C0', sensorName: 'DHT20' },
-    { port: 'I2C1', sensorName: 'OLED' },
+    { port: 'I2C0', sensorName: 'DHT20+OLED' },
     { port: 'A0', sensorName: '빛 센서' },
   ]}
 />
 
+:::note[같은 I2C0에 2개 연결하기]
+코드에서 `I2C(0)`으로 DHT20과 OLED를 모두 제어합니다. 물리적으로 같은 I2C0 포트에 연결해야 합니다. I2C Y-스플리터 케이블이 없다면, OLED를 I2C1에 연결하고 코드에서 `I2C(1, sda=Pin(6), scl=Pin(7))`로 별도 초기화할 수도 있습니다.
+:::
+
 ### 연결 연습
 
-세 장치를 모두 올바른 포트에 연결해보세요.
+빛 센서를 올바른 포트에 연결해보세요. (DHT20과 OLED는 같은 I2C0 버스를 공유합니다.)
 
 <VirtualWiring
   client:load
-  title="4차시: 3개 장치 동시 연결"
+  title="4차시: 센서 연결"
   sensors={[
-    { id: 'dht20', name: 'DHT20 (온습도)', correctPort: 'I2C0', portType: 'I2C', hint: 'I2C 센서는 I2C 포트에 연결합니다' },
-    { id: 'oled', name: 'OLED 디스플레이', correctPort: 'I2C1', portType: 'I2C', hint: 'OLED도 I2C 장치입니다. 다른 I2C 포트에 연결하세요' },
     { id: 'light', name: '빛 센서', correctPort: 'A0', portType: '아날로그', hint: '아날로그 센서는 A0 포트에 연결합니다' },
   ]}
 />

@@ -30,9 +30,9 @@ const PORTS: PortInfo[] = [
   { name: 'A1', type: '아날로그', gpio: 'GP27', color: '#22c55e', sensorExamples: '사운드 센서, 가스 센서' },
   { name: 'A2', type: '아날로그', gpio: 'GP28', color: '#22c55e', sensorExamples: '온도 센서, 회전 가변저항' },
   // 디지털
-  { name: 'D16', type: '디지털', gpio: 'GP16', color: '#3b82f6', sensorExamples: '버튼, LED' },
-  { name: 'D18', type: '디지털', gpio: 'GP18', color: '#3b82f6', sensorExamples: '초음파 센서, 릴레이' },
-  { name: 'D20', type: '디지털', gpio: 'GP20', color: '#3b82f6', sensorExamples: '부저, 모션 센서' },
+  { name: 'D16', type: '디지털', gpio: 'GP16/GP17', color: '#3b82f6', sensorExamples: '버튼, LED' },
+  { name: 'D18', type: '디지털', gpio: 'GP18/GP19', color: '#3b82f6', sensorExamples: '초음파 센서, 릴레이' },
+  { name: 'D20', type: '디지털', gpio: 'GP20/GP21', color: '#3b82f6', sensorExamples: '부저, 모션 센서' },
   // I2C
   { name: 'I2C0', type: 'I2C', gpio: 'GP8/GP9', color: '#eab308', sensorExamples: 'OLED 디스플레이, BME280' },
   { name: 'I2C1', type: 'I2C', gpio: 'GP6/GP7', color: '#eab308', sensorExamples: '가속도 센서, 컬러 센서' },
