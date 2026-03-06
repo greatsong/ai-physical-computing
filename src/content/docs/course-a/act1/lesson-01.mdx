@@ -4,6 +4,9 @@ description: "온습도 센서(DHT20)를 연결하고, MicroPython으로 교실 
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
+import GroveShieldMap from '../../../../components/grove/GroveShieldMap';
+import GroveConnectorTip from '../../../../components/grove/GroveConnectorTip';
+import VirtualWiring from '../../../../components/grove/VirtualWiring';
 
 {/* 섹션 A: 헤더 */}
 
@@ -42,6 +45,30 @@ DHT20 센서를 Grove 케이블로 Shield의 **I2C 포트**(I2C0 또는 I2C1)에
 :::note[포트 찾기]
 Grove Shield에는 여러 종류의 포트가 있습니다. DHT20은 반드시 **"I2C"라고 적힌 포트**(I2C0 또는 I2C1)에 연결해야 합니다. 아날로그(A0~A2)나 디지털(D16~D20) 포트에 꽂으면 동작하지 않습니다.
 :::
+
+### 보드 포트 맵
+
+아래 보드에서 각 포트를 클릭하면 어떤 센서를 연결할 수 있는지 확인할 수 있습니다. **I2C0** 포트에 DHT20을 연결하세요.
+
+<GroveShieldMap
+  client:load
+  activePort="I2C0"
+  connectedSensors={[{ port: 'I2C0', sensorName: 'DHT20' }]}
+/>
+
+<GroveConnectorTip client:load />
+
+### 연결 연습
+
+센서 카드를 클릭한 후, 보드의 올바른 포트를 클릭하여 연결해보세요.
+
+<VirtualWiring
+  client:load
+  title="1차시: DHT20 센서 연결하기"
+  sensors={[
+    { id: 'dht20', name: 'DHT20 (온습도)', correctPort: 'I2C0', portType: 'I2C', hint: 'I2C 센서는 I2C 포트에 연결합니다' },
+  ]}
+/>
 
 ---
 

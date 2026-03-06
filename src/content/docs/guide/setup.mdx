@@ -4,6 +4,8 @@ description: "Raspberry Pi Pico 2 WH, Grove Shield, Thonny IDE 설치까지 — 
 ---
 
 import { Tabs, TabItem, Steps, LinkCard, Card, CardGrid, Aside } from '@astrojs/starlight/components';
+import GroveShieldMap from '../../../components/grove/GroveShieldMap';
+import GroveConnectorTip from '../../../components/grove/GroveConnectorTip';
 
 이 페이지에서는 센서 코딩 수업에 필요한 **하드웨어**와 **소프트웨어**를 모두 준비합니다.
 처음부터 끝까지 따라오면, 마지막에 LED가 깜빡이는 것을 확인할 수 있습니다.
@@ -69,6 +71,12 @@ Shield를 Pico에 장착하는 방법은 다음과 같습니다.
 Pico를 Shield에 **거꾸로 꽂지 않도록** 주의하세요. USB 포트 방향을 기준으로 맞추면 됩니다. 거꾸로 꽂아도 고장나지는 않지만, 센서가 올바르게 동작하지 않습니다.
 </Aside>
 
+#### 포트 맵
+
+아래 인터랙티브 보드에서 각 포트를 클릭하면 어떤 센서를 연결할 수 있는지 확인할 수 있습니다.
+
+<GroveShieldMap client:load />
+
 ---
 
 ### Grove 센서
@@ -78,6 +86,8 @@ Pico를 Shield에 **거꾸로 꽂지 않도록** 주의하세요. USB 포트 방
 
 모든 Grove 센서는 같은 형태의 **4핀 커넥터**를 사용합니다.
 센서 종류가 달라도 연결 방법은 동일합니다 — 케이블을 꽂기만 하면 됩니다.
+
+<GroveConnectorTip client:load />
 
 <Aside type="tip">
 32종 센서의 전체 목록, 상세 스펙, 연결 포트, 예제 코드는 **센서 도감**에서 확인할 수 있습니다.
