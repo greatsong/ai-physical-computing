@@ -1,8 +1,361 @@
 ---
 title: "코드 레퍼런스"
-description: "MicroPython 코드 스니펫 모음"
+description: "센서별 MicroPython 코드 조각 모음과 바이브 코딩 프롬프트 템플릿"
 ---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 # 코드 레퍼런스
 
-*이 페이지는 준비 중입니다.*
+> **필요한 코드를 빠르게 찾아 사용하세요.**
+
+이 페이지에는 센서별 기본 코드 패턴, 포트별 초기화 코드, 바이브 코딩 프롬프트 템플릿을 모아두었어요.
+
+---
+
+## 포트별 기본 패턴
+
+<Tabs>
+  <TabItem label="I2C">
+
+### I2C 포트 (디지털 통신)
+
+I2C는 여러 장치를 하나의 버스에 연결할 수 있는 통신 방식이에요.
+
+```python
+from machine import I2C, Pin
+import time
+
+# I2C 초기화 (Grove Shield 기본)
+i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+time.sleep(0.1)
+
+# 연결된 장치 주소 확인
+devices = i2c.scan()
+print(f"발견된 장치: {[hex(d) for d in devices]}")
+# 예: [0x38, 0x3c] -> DHT20 + OLED
+```
+
+**I2C 장치 주소 목록:**
+
+| 장치 | 주소 | 확인 방법 |
+|------|------|----------|
+| DHT20 (온습도) | 0x38 | `i2c.scan()` |
+| SSD1306 (OLED) | 0x3C | `i2c.scan()` |
+| SGP30 (공기질) | 0x58 | `i2c.scan()` |
+| ADXL345 (가속도) | 0x53 | `i2c.scan()` |
+| BMP280 (기압) | 0x76 또는 0x77 | `i2c.scan()` |
+
+  </TabItem>
+  <TabItem label="ADC">
+
+### ADC 포트 (아날로그 입력)
+
+ADC는 아날로그 전압을 0~65535 사이의 디지털 값으로 변환해요.
+
+```python
+from machine import ADC, Pin
+
+# ADC 초기화
+# A0 = GP26, A1 = GP27, A2 = GP28
+sensor_a0 = ADC(Pin(26))  # A0 포트
+sensor_a1 = ADC(Pin(27))  # A1 포트
+sensor_a2 = ADC(Pin(28))  # A2 포트
+
+# 값 읽기 (0~65535)
+raw_value = sensor_a0.read_u16()
+
+# 퍼센트로 변환
+percent = round(raw_value / 65535 * 100, 1)
+
+# 전압으로 변환 (0~3.3V)
+voltage = raw_value / 65535 * 3.3
+
+print(f"Raw: {raw_value}, Percent: {percent}%, Voltage: {voltage:.2f}V")
+```
+
+**ADC 센서 목록:**
+
+| 센서 | 권장 포트 | 출력 범위 |
+|------|----------|----------|
+| Light Sensor | A0 | 0~65535 (밝을수록 높음) |
+| Sound Sensor | A0 | 0~65535 (소리 클수록 높음) |
+| Rotary Angle | A0 | 0~65535 (회전에 비례) |
+| Moisture Sensor | A0 | 0~65535 (수분 많을수록 높음) |
+
+  </TabItem>
+  <TabItem label="Digital">
+
+### Digital 포트 (디지털 입출력)
+
+Digital 포트는 HIGH(1) 또는 LOW(0) 두 가지 상태만 다뤄요.
+
+```python
+from machine import Pin
+
+# 디지털 입력 (버튼, PIR 센서 등)
+button = Pin(16, Pin.IN, Pin.PULL_UP)  # D16
+pir = Pin(17, Pin.IN)                   # D17
+
+# 디지털 출력 (LED, 부저 등)
+led = Pin("LED", Pin.OUT)              # 내장 LED
+buzzer = Pin(18, Pin.OUT)              # D18
+
+# 값 읽기
+if button.value() == 0:  # 버튼 누름 (PULL_UP이므로 0이 누름)
+    print("버튼 눌림!")
+
+if pir.value() == 1:  # PIR 감지
+    print("움직임 감지!")
+
+# 값 쓰기
+led.on()   # LED 켜기
+led.off()  # LED 끄기
+```
+
+  </TabItem>
+</Tabs>
+
+---
+
+## 센서별 코드 조각
+
+<Tabs>
+  <TabItem label="온습도 (DHT20)">
+
+### DHT20 온습도 센서
+
+```python
+from machine import I2C, Pin
+import time
+
+i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+sensor_addr = 0x38
+time.sleep(0.1)
+
+def read_dht20():
+    """DHT20에서 온도(°C)와 습도(%)를 읽어요"""
+    i2c.writeto(sensor_addr, bytes([0xAC, 0x33, 0x00]))
+    time.sleep(0.08)
+    data = i2c.readfrom(sensor_addr, 7)
+    humidity = ((data[1] << 12) | (data[2] << 4) | (data[3] >> 4)) / 1048576 * 100
+    temperature = (((data[3] & 0x0F) << 16) | (data[4] << 8) | data[5]) / 1048576 * 200 - 50
+    return round(temperature, 1), round(humidity, 1)
+
+# 사용
+temp, humi = read_dht20()
+print(f"온도: {temp}°C, 습도: {humi}%")
+```
+
+  </TabItem>
+  <TabItem label="OLED (SSD1306)">
+
+### SSD1306 OLED 디스플레이
+
+```python
+from machine import I2C, Pin
+import ssd1306
+
+i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+
+# 기본 텍스트 표시
+oled.fill(0)                    # 화면 지우기 (검정)
+oled.text("Hello!", 0, 0, 1)   # 텍스트 (x, y, 색)
+oled.show()                     # 화면에 적용
+
+# 도형 그리기
+oled.pixel(10, 10, 1)           # 점 찍기
+oled.hline(0, 20, 128, 1)      # 가로선 (x, y, 길이, 색)
+oled.vline(64, 0, 64, 1)       # 세로선
+oled.rect(10, 30, 50, 20, 1)   # 사각형 테두리
+oled.fill_rect(70, 30, 50, 20, 1)  # 채워진 사각형
+
+oled.show()
+```
+
+**라이브러리 설치:**
+```python
+import mip
+mip.install("ssd1306")
+```
+
+  </TabItem>
+  <TabItem label="초음파 거리">
+
+### 초음파 거리 센서
+
+```python
+from machine import Pin
+import time
+
+trigger = Pin(16, Pin.OUT)  # D16
+echo = Pin(17, Pin.IN)      # D17
+
+def measure_distance():
+    """거리를 cm 단위로 측정해요"""
+    trigger.off()
+    time.sleep_us(2)
+    trigger.on()
+    time.sleep_us(10)
+    trigger.off()
+
+    # 에코 신호 대기
+    timeout = time.ticks_us() + 30000  # 30ms 타임아웃
+    while echo.value() == 0:
+        if time.ticks_us() > timeout:
+            return -1
+    start = time.ticks_us()
+
+    while echo.value() == 1:
+        if time.ticks_us() > timeout:
+            return -1
+    end = time.ticks_us()
+
+    duration = time.ticks_diff(end, start)
+    distance = duration * 0.0343 / 2  # 음속 343m/s
+    return round(distance, 1)
+
+# 사용
+dist = measure_distance()
+print(f"거리: {dist}cm")
+```
+
+  </TabItem>
+  <TabItem label="가속도 (ADXL345)">
+
+### ADXL345 3축 가속도 센서
+
+```python
+from machine import I2C, Pin
+import time
+
+i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+ADDR = 0x53
+
+# 측정 모드 활성화
+i2c.writeto_mem(ADDR, 0x2D, bytes([0x08]))
+
+def read_accel():
+    """X, Y, Z 가속도를 읽어요"""
+    data = i2c.readfrom_mem(ADDR, 0x32, 6)
+    x = (data[1] << 8) | data[0]
+    y = (data[3] << 8) | data[2]
+    z = (data[5] << 8) | data[4]
+    # 부호 처리
+    if x > 32767: x -= 65536
+    if y > 32767: y -= 65536
+    if z > 32767: z -= 65536
+    return x, y, z
+
+# 사용
+x, y, z = read_accel()
+print(f"X:{x} Y:{y} Z:{z}")
+```
+
+  </TabItem>
+</Tabs>
+
+---
+
+## 공통 패턴
+
+### CSV 파일 저장
+
+```python
+import time
+
+FILENAME = "data.csv"
+
+# 파일 생성 (헤더)
+with open(FILENAME, "w") as f:
+    f.write("reading,seconds,value\n")
+
+# 데이터 추가
+count = 0
+start = time.time()
+
+while True:
+    value = read_sensor()  # 센서 읽기 함수
+    count += 1
+    elapsed = time.time() - start
+
+    with open(FILENAME, "a") as f:
+        f.write(f"{count},{elapsed},{value}\n")
+
+    time.sleep(1)
+```
+
+### 이동 평균 (노이즈 제거)
+
+```python
+buffer = []
+WINDOW = 10  # 최근 10개의 평균
+
+def smoothed_read(sensor):
+    """이동 평균으로 노이즈를 줄여요"""
+    raw = sensor.read_u16()
+    buffer.append(raw)
+    if len(buffer) > WINDOW:
+        buffer.pop(0)
+    return sum(buffer) / len(buffer)
+```
+
+### OLED 막대그래프
+
+```python
+def draw_bar(oled, x, y, width, height, value, max_val=100):
+    """OLED에 막대그래프를 그려요"""
+    oled.rect(x, y, width, height, 1)  # 테두리
+    fill_w = int((value / max_val) * (width - 2))
+    fill_w = max(0, min(fill_w, width - 2))
+    if fill_w > 0:
+        oled.fill_rect(x + 1, y + 1, fill_w, height - 2, 1)
+```
+
+---
+
+## 바이브 코딩 프롬프트 템플릿
+
+AI에게 코드를 요청할 때 아래 템플릿을 참고하세요. 구체적일수록 좋은 결과를 얻을 수 있어요.
+
+### 기본 프롬프트 구조
+
+```
+[하드웨어]
+Raspberry Pi Pico WH에서 Grove Shield를 사용해요.
+{포트}에 {센서 이름}이(가) 연결되어 있어요.
+
+[요청]
+{하고 싶은 것}을(를) 하는 MicroPython 코드를 작성해주세요.
+
+[세부 사항]
+- {출력 방식}: {구체적 내용}
+- {갱신 주기}: {시간}
+- {추가 요구}: {내용}
+```
+
+### 프롬프트 예시
+
+**센서 읽기:**
+> "Pico WH에서 I2C 포트에 연결된 DHT20 센서의 온도와 습도를 2초 간격으로 읽어서 print하는 MicroPython 코드를 작성해줘."
+
+**OLED 대시보드:**
+> "Pico WH에서 DHT20 센서와 SSD1306 OLED(128x64, I2C)를 사용해요. OLED 화면 첫 줄에 온도, 두 번째 줄에 습도, 세 번째 줄에 온도 막대그래프를 표시하는 대시보드 코드를 MicroPython으로 작성해줘. 1초마다 갱신해줘."
+
+**복합 센서:**
+> "Pico WH에서 I2C에 DHT20과 OLED, A0에 소리 센서가 있어요. 온도, 습도, 소음 레벨을 동시에 읽어서 OLED에 종합 대시보드로 표시하고, CSV 파일에 자동 저장하는 MicroPython 코드를 작성해줘. try/except로 에러 처리도 해줘."
+
+**PC 대시보드:**
+> "Python에서 serial 포트로 'temp,humi,noise' 형식의 데이터를 받아서 matplotlib으로 실시간 3개 그래프를 그리는 코드를 작성해줘. deque로 최근 60개만 유지해줘."
+
+---
+
+## 자주 사용하는 라이브러리
+
+| 라이브러리 | 환경 | 용도 | 설치 |
+|-----------|------|------|------|
+| `ssd1306` | MicroPython | OLED 디스플레이 | `mip.install("ssd1306")` |
+| `matplotlib` | PC Python | 그래프 그리기 | `pip install matplotlib` |
+| `pyserial` | PC Python | Serial 통신 | `pip install pyserial` |
+| `csv` | PC Python | CSV 파일 읽기 | 기본 내장 |

@@ -1,10 +1,487 @@
 ---
-title: "8차시: 거리를 재는 눈"
-description: "초음파/적외선 센서로 거리 측정과 카운팅"
+title: "8차시: 스마트 알림 시스템"
+description: "바이브 코딩으로 초음파 센서, 부저, LED Bar를 조합한 거리 기반 경보 시스템을 만듭니다."
 ---
 
-# 거리를 재는 눈
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-> 오늘의 질문: "복도를 지나는 사람을 자동으로 셀 수 있을까?"
+{/* 섹션 A: 헤더 */}
 
-*이 페이지는 준비 중입니다.*
+<p style="color: var(--sl-color-gray-3); margin-bottom: 0.25rem;">2막 바이브 코딩으로 확장 &gt; 8차시</p>
+
+# 스마트 알림 시스템
+
+> **오늘의 질문:** "센서 데이터에 따라 자동으로 알림을 보내는 시스템을 만들 수 있을까?"
+
+<p style="color: var(--sl-color-gray-3);">
+50분 | 초음파 센서(D16) + 부저(D18) + LED Bar(D20) + OLED | 난이도 ●●●○○
+</p>
+
+---
+
+{/* 섹션 B: 준비물 */}
+
+## 준비물
+
+| 준비물 | 설명 |
+|--------|------|
+| Raspberry Pi Pico WH + Grove Shield | 하드웨어 (1막과 동일) |
+| 초음파 거리 센서 (Ultrasonic Ranger v2) | 초음파로 거리를 측정하는 디지털 센서입니다. D16 포트에 연결합니다. |
+| 부저 (Buzzer) | 소리를 내는 출력 장치입니다. D18 포트에 연결합니다. |
+| LED Bar | 10개의 LED가 한 줄로 배열된 표시 장치입니다. D20 포트에 연결합니다. |
+| OLED 디스플레이 (SSD1306) | I2C 포트에 연결합니다. |
+| AI 챗봇 | Claude, ChatGPT 등 — 바이브 코딩에 사용 |
+
+### 연결 방법
+
+| 장치 | 포트 | 핀 번호 |
+|------|------|---------|
+| 초음파 센서 | D16 | Trig=GP16, Echo=GP17 |
+| 부저 | D18 | GP18 |
+| LED Bar | D20 | Data=GP20, Clock=GP21 |
+| OLED | I2C | SDA=GP8, SCL=GP9 |
+
+:::tip[여러 포트를 동시에 사용]
+이번 차시에서는 4개의 장치를 동시에 사용합니다. 디지털 포트(D16, D18, D20)는 각각 독립적으로 동작하므로, 연결만 정확하면 동시 사용이 가능합니다.
+:::
+
+---
+
+{/* 섹션 C: 단계별 활동 가이드 */}
+
+## 활동 가이드
+
+### Step 1. AI에게 알림 시스템 코드 요청하기 (15분)
+
+1. AI 챗봇을 열고 [바이브 코딩 프롬프트](#바이브-코딩-프롬프트) 탭의 예시를 참고하여 프롬프트를 보냅니다.
+2. AI가 생성한 코드를 읽어봅니다 — 초음파 측정, 부저 제어, LED Bar 제어 부분을 확인하세요.
+3. Thonny에 붙여넣고 실행합니다.
+4. 센서 앞에 손을 가까이/멀리 움직이며 반응을 확인합니다.
+
+:::tip[코드 리뷰 체크포인트]
+- 초음파 센서의 Trig/Echo 핀이 `Pin(16)`, `Pin(17)`인가요?
+- 부저 핀이 `Pin(18)`인가요?
+- 거리에 따라 부저 주파수와 LED 레벨이 바뀌나요?
+:::
+
+### Step 2. 거리별 알림 반응 테스트 (10분)
+
+1. 자를 이용해 정확한 거리에 물체를 놓습니다.
+2. 각 거리에서 부저 소리와 LED Bar가 어떻게 변하는지 기록합니다.
+3. 알림 기준 거리를 조절해봅니다 — AI에게 "위험 거리를 15cm에서 20cm로 바꿔줘"라고 요청하거나, 직접 코드를 수정하세요.
+
+#### 거리별 알림 기록표
+
+| 실제 거리 (cm) | 센서 측정값 (cm) | 부저 상태 | LED Bar 레벨 | OLED 표시 |
+|---------------|----------------|----------|-------------|----------|
+| 5 | | | | |
+| 10 | | | | |
+| 20 | | | | |
+| 30 | | | | |
+| 50 | | | | |
+| 100 | | | | |
+
+### Step 3. 주차 보조 시스템 도전 (15분)
+
+실제 자동차 후방 감지 시스템처럼 동작하도록 개선합니다.
+
+1. [도전 코드](#도전-코드) 탭을 참고하거나, AI에게 추가 기능을 요청합니다.
+2. **가까울수록 빠른 경고음**: 거리가 줄어들수록 부저가 빨리 울리게 합니다.
+3. **LED Bar 레벨 증가**: 가까울수록 더 많은 LED가 켜지게 합니다.
+4. 친구에게 시연하고, 사용성을 평가받아봅니다.
+
+:::note[주차 보조 시스템의 원리]
+자동차 후방 센서도 같은 원리입니다. 초음파를 쏘아 거리를 재고, 가까울수록 "삐삐삐" 간격이 빨라지며, 매우 가까우면 "삐---" 연속음이 됩니다. 여러분이 만든 시스템도 똑같은 로직입니다.
+:::
+
+### Step 4. 토론하기 (10분)
+
+1. **"이 시스템을 학교에서 어디에 활용할 수 있을까요?"** (복도 충돌 방지, 문 열림 감지 등)
+2. **"AI가 만든 코드에서 가장 이해하기 어려운 부분은 어디였나요?"**
+3. **"센서 1개 + 출력 3개(부저, LED, OLED)를 동시에 제어하는 게 직접 코딩이었다면 얼마나 걸렸을까요?"**
+
+---
+
+{/* 섹션 D: 코드 예시 */}
+
+## 코드
+
+<Tabs>
+  <TabItem label="바이브 코딩 프롬프트">
+
+### AI에게 보낼 프롬프트
+
+```
+Pico WH에 다음 장치를 연결했어:
+- 초음파 센서: D16 포트 (Trig=GP16, Echo=GP17)
+- 부저: D18 포트 (GP18)
+- LED Bar: D20 포트 (Data=GP20, Clock=GP21)
+- OLED SSD1306: I2C0 (SDA=GP8, SCL=GP9)
+
+거리 기반 경보 시스템을 만들어줘. MicroPython으로.
+
+1. 초음파 센서로 거리를 측정 (0.3초 간격)
+2. 거리에 따라 부저와 LED Bar가 반응:
+   - 10cm 미만: 부저 연속, LED 10개 모두 켜기, OLED에 "DANGER!"
+   - 10~30cm: 부저 빠르게 삐삐삐, LED 7개, OLED에 "WARNING"
+   - 30~50cm: 부저 느리게 삐...삐..., LED 4개, OLED에 "CAUTION"
+   - 50cm 이상: 부저 끄기, LED 1개, OLED에 "SAFE"
+3. OLED에 거리 숫자 + 바 그래프 + 위험도 텍스트 표시
+
+LED Bar는 간단하게 PWM이나 디지털 출력으로 제어해줘.
+부저는 PWM으로 주파수를 바꿔서 거리에 따라 다른 음높이를 내줘.
+```
+
+  </TabItem>
+  <TabItem label="기본 코드">
+
+### 기본 코드
+
+AI가 생성할 수 있는 완성 코드 예시입니다.
+
+```python
+from machine import Pin, PWM, I2C
+import ssd1306
+import time
+
+# 초음파 센서
+trig = Pin(16, Pin.OUT)
+echo = Pin(17, Pin.IN)
+
+# 부저 (PWM으로 주파수 제어)
+buzzer = PWM(Pin(18))
+buzzer.duty_u16(0)  # 처음에 끄기
+
+# LED Bar (간단히 디지털 출력으로 제어)
+led_data = Pin(20, Pin.OUT)
+led_clock = Pin(21, Pin.OUT)
+
+# OLED
+i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+oled = ssd1306.SSD1306_I2C(128, 64, i2c, addr=0x3C)
+
+def measure_distance():
+    """초음파로 거리 측정 (cm)"""
+    trig.value(0)
+    time.sleep_us(2)
+    trig.value(1)
+    time.sleep_us(10)
+    trig.value(0)
+
+    while echo.value() == 0:
+        start = time.ticks_us()
+    while echo.value() == 1:
+        end = time.ticks_us()
+
+    duration = time.ticks_diff(end, start)
+    distance = duration * 0.0343 / 2
+    return round(distance, 1)
+
+def set_buzzer(distance):
+    """거리에 따라 부저 제어"""
+    if distance < 10:
+        # 매우 가까움: 높은 음 연속
+        buzzer.freq(2000)
+        buzzer.duty_u16(32768)
+    elif distance < 30:
+        # 가까움: 중간 음
+        buzzer.freq(1500)
+        buzzer.duty_u16(16384)
+    elif distance < 50:
+        # 보통: 낮은 음
+        buzzer.freq(800)
+        buzzer.duty_u16(8192)
+    else:
+        # 멀리: 끄기
+        buzzer.duty_u16(0)
+
+def set_led_level(distance):
+    """거리에 따라 LED 레벨 반환 (1~10)"""
+    if distance < 10:
+        return 10
+    elif distance < 20:
+        return 8
+    elif distance < 30:
+        return 6
+    elif distance < 50:
+        return 4
+    elif distance < 80:
+        return 2
+    else:
+        return 1
+
+def get_alert_info(distance):
+    """거리에 따라 경보 텍스트와 레벨 반환"""
+    if distance < 10:
+        return "DANGER!", 10
+    elif distance < 30:
+        return "WARNING", 7
+    elif distance < 50:
+        return "CAUTION", 4
+    else:
+        return "SAFE", 1
+
+def show_dashboard(distance, alert_text, led_level):
+    """OLED 대시보드 표시"""
+    oled.fill(0)
+
+    # 거리 숫자 (큰 글씨 효과)
+    oled.text(f"{distance} cm", 0, 0)
+
+    # 경보 텍스트
+    oled.text(f"[{alert_text}]", 0, 14)
+
+    # 거리 바 그래프 (0~200cm → 0~128px)
+    bar_width = max(1, min(128, int((200 - distance) / 200 * 128)))
+    oled.fill_rect(0, 28, bar_width, 8, 1)
+    oled.rect(0, 28, 128, 8, 1)
+
+    # LED 레벨 시각화
+    oled.text(f"LED: {'#' * led_level}{'.' * (10 - led_level)}", 0, 42)
+
+    # 부저 상태
+    if distance < 50:
+        oled.text(f"Buzzer: ON", 0, 54)
+    else:
+        oled.text(f"Buzzer: OFF", 0, 54)
+
+    oled.show()
+
+# 메인 루프
+print("스마트 알림 시스템 시작...")
+
+while True:
+    dist = measure_distance()
+
+    alert_text, _ = get_alert_info(dist)
+    led_level = set_led_level(dist)
+    set_buzzer(dist)
+
+    show_dashboard(dist, alert_text, led_level)
+    print(f"거리: {dist}cm | {alert_text} | LED:{led_level}/10")
+
+    # 거리에 따라 측정 간격 조절
+    if dist < 10:
+        time.sleep(0.1)   # 가까우면 빠르게
+    elif dist < 30:
+        time.sleep(0.2)
+    else:
+        time.sleep(0.3)   # 멀면 느리게
+
+# 종료 시 부저 끄기 (Ctrl+C)
+buzzer.duty_u16(0)
+```
+
+### 줄별 해설
+
+| 줄 | 코드 | 설명 |
+|----|------|------|
+| 8 | `PWM(Pin(18))` | 부저를 PWM(펄스 폭 변조)으로 제어합니다. 주파수를 바꾸면 음높이가 달라집니다. |
+| 24-35 | `measure_distance()` | 초음파를 발사하고 반사파가 돌아오는 시간으로 거리를 계산합니다. |
+| 38-39 | `buzzer.freq(2000)` | 부저 주파수를 2000Hz로 설정합니다. 숫자가 클수록 높은 음입니다. |
+| 40 | `buzzer.duty_u16(32768)` | 부저의 음량을 설정합니다. 0은 끄기, 65535는 최대입니다. |
+| 100-105 | 측정 간격 조절 | 가까울수록 자주 측정해서 빠른 반응을 보여줍니다. 자동차 후방 센서와 같은 원리입니다. |
+
+  </TabItem>
+  <TabItem label="도전 코드">
+
+### 도전 코드: 주차 보조 시스템
+
+가까울수록 빠른 경고음(삐삐삐) + LED 바 증가 — 실제 자동차와 같은 동작입니다.
+
+```python
+from machine import Pin, PWM, I2C
+import ssd1306
+import time
+
+trig = Pin(16, Pin.OUT)
+echo = Pin(17, Pin.IN)
+buzzer = PWM(Pin(18))
+buzzer.duty_u16(0)
+
+i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+oled = ssd1306.SSD1306_I2C(128, 64, i2c, addr=0x3C)
+
+def measure_distance():
+    trig.value(0)
+    time.sleep_us(2)
+    trig.value(1)
+    time.sleep_us(10)
+    trig.value(0)
+
+    while echo.value() == 0:
+        start = time.ticks_us()
+    while echo.value() == 1:
+        end = time.ticks_us()
+
+    duration = time.ticks_diff(end, start)
+    distance = duration * 0.0343 / 2
+    return round(distance, 1)
+
+def beep(freq, duration_ms):
+    """짧은 비프음"""
+    buzzer.freq(freq)
+    buzzer.duty_u16(32768)
+    time.sleep_ms(duration_ms)
+    buzzer.duty_u16(0)
+
+# 히스토리 (최근 32개)
+dist_history = []
+
+print("주차 보조 시스템 시작...")
+print("물체를 센서에 가까이 대보세요.")
+
+while True:
+    dist = measure_distance()
+
+    # 히스토리 업데이트
+    dist_history.append(dist)
+    if len(dist_history) > 32:
+        dist_history.pop(0)
+
+    # 거리에 따른 알림 패턴
+    if dist < 5:
+        # 매우 가까움: 연속음
+        buzzer.freq(2500)
+        buzzer.duty_u16(32768)
+        alert = "STOP!"
+        led_level = 10
+        wait = 0.05
+    elif dist < 15:
+        # 가까움: 빠른 삐삐삐
+        beep(2000, 80)
+        alert = "CLOSE"
+        led_level = 8
+        wait = 0.1
+    elif dist < 30:
+        # 보통: 중간 삐삐
+        beep(1500, 60)
+        alert = "NEAR"
+        led_level = 6
+        wait = 0.3
+    elif dist < 50:
+        # 약간 멀리: 느린 삐
+        beep(1000, 40)
+        alert = "DETECT"
+        led_level = 3
+        wait = 0.5
+    else:
+        # 멀리: 조용
+        buzzer.duty_u16(0)
+        alert = "CLEAR"
+        led_level = 0
+        wait = 0.5
+
+    # OLED 대시보드
+    oled.fill(0)
+
+    # 거리 + 상태
+    oled.text(f"{dist}cm [{alert}]", 0, 0)
+
+    # 바 그래프 (거리가 가까울수록 길어짐)
+    bar_w = max(0, min(128, int((100 - dist) / 100 * 128)))
+    oled.fill_rect(0, 14, bar_w, 8, 1)
+    oled.rect(0, 14, 128, 8, 1)
+
+    # LED 레벨 표시
+    led_bar = "#" * led_level + "." * (10 - led_level)
+    oled.text(f"[{led_bar}]", 0, 28)
+
+    # 히스토리 그래프
+    if len(dist_history) >= 2:
+        for j in range(1, len(dist_history)):
+            # 0~100cm를 0~20px로 매핑
+            y1 = 62 - min(20, int(dist_history[j-1] / 100 * 20))
+            y2 = 62 - min(20, int(dist_history[j] / 100 * 20))
+            x1 = (j - 1) * 4
+            x2 = j * 4
+            if x2 < 128:
+                oled.line(x1, y1, x2, y2, 1)
+
+    oled.show()
+
+    print(f"{dist:6.1f}cm | {alert:<6s} | LED:{'#'*led_level}")
+    time.sleep(wait)
+
+buzzer.duty_u16(0)
+```
+
+:::note[코드 읽어보기]
+실제 자동차 주차 보조 시스템과 같은 패턴입니다. 5cm 미만이면 "삐---" 연속음(멈춰야 한다는 신호), 15cm 미만이면 빠른 "삐삐삐", 30cm 미만이면 중간 속도, 50cm 이상이면 조용합니다. `beep()` 함수는 짧은 시간 동안만 소리를 내고 꺼서 "삐삐삐" 패턴을 만듭니다. `wait` 변수로 전체 반복 속도도 조절하여 가까울수록 더 자주 측정합니다.
+:::
+
+  </TabItem>
+</Tabs>
+
+---
+
+{/* 섹션 E: 와우 모먼트 */}
+
+## 잠깐, 방금 무슨 일이 일어난 걸까요?
+
+여러분이 방금 한 일을 다시 생각해보세요.
+
+AI에게 **"거리 기반 경보 시스템 만들어줘"**라고 프롬프트를 보내고
+**→** AI가 **초음파 센서 + 부저 + LED + OLED를 동시에 제어하는 코드**를 생성하고
+**→** 초음파가 물체에 부딪혀 **반사되는 시간으로 거리를 계산**하고
+**→** 가까울수록 부저가 **빠르고 높은 음**으로 울리고
+**→** LED Bar가 **더 많이 켜지고**
+**→** OLED에 **실시간 거리와 위험도**가 표시되었습니다.
+
+입력(센서) → 처리(거리 계산 + 판단) → 출력(부저 + LED + OLED) — 이것이 **피지컬 컴퓨팅의 핵심 구조**입니다. 자동차 후방 센서, 로봇 청소기의 장애물 감지, 공장의 안전 시스템 모두 이 구조로 동작합니다.
+
+---
+
+{/* 섹션 F: 대시보드/데이터 활동 */}
+
+## 대시보드 데이터로 생각하기
+
+거리별 알림 기록표의 데이터를 분석해봅시다.
+
+1. **센서 측정값과 실제 거리의 오차**는 얼마인가요?
+2. **어떤 거리 범위에서 부저 반응이 가장 유용했나요?**
+3. **경보 기준 거리를 바꾸면 실용성이 어떻게 달라지나요?** (너무 민감하면? 너무 둔감하면?)
+
+#### 용도별 최적 설정 토론
+
+| 용도 | 위험 거리 (cm) | 경고 거리 (cm) | 이유 |
+|------|-------------|-------------|------|
+| 주차 보조 | | | |
+| 복도 충돌 방지 | | | |
+| 책상 위 물체 감지 | | | |
+| (자유 아이디어) | | | |
+
+:::note[실생활 설계]
+같은 센서와 코드라도, 기준값을 바꾸면 완전히 다른 용도가 됩니다. "기술"은 같아도 "설계"가 다르면 다른 제품이 됩니다. 이것이 엔지니어링의 핵심입니다.
+:::
+
+---
+
+{/* 섹션 G: 마무리 */}
+
+## 마무리
+
+### 오늘 배운 것
+
+- **다중 출력 제어**: 하나의 센서 입력으로 부저, LED, OLED 세 가지 출력을 동시에 제어했습니다.
+- **PWM으로 소리 제어**: 부저의 주파수와 음량을 코드로 조절하는 방법을 이해했습니다.
+- **입력→처리→출력 구조**: 피지컬 컴퓨팅의 핵심 패턴을 복합 시스템에서 경험했습니다.
+
+### 다음 시간 미리보기
+
+:::tip[9차시 "데이터 정리와 시각화"]
+다음 시간에는 Pico가 아닌 **컴퓨터 Python**을 사용합니다. 지금까지 센서로 수집한 데이터를 정리하고, matplotlib으로 멋진 그래프를 그려봅니다. 데이터 과학의 세계로 들어갑니다.
+:::
+
+---
+
+{/* 섹션 H: 체크리스트 */}
+
+## 자기 점검 체크리스트
+
+- [ ] AI에게 프롬프트를 보내 알림 시스템 코드를 생성받았다
+- [ ] 초음파 센서 + 부저 + LED + OLED가 동시에 동작하는 것을 확인했다
+- [ ] 거리에 따라 부저 소리와 LED 레벨이 변하는 것을 확인했다
+- [ ] 거리별 반응을 기록하고 정확도를 비교했다
+- [ ] OLED에 거리 + 바 그래프 + 위험도가 표시되는 것을 확인했다
+- [ ] (도전) 주차 보조 시스템(빠른 경고음 패턴)을 구현해봤다

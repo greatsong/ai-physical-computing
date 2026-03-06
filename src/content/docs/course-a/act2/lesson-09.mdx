@@ -1,10 +1,416 @@
 ---
-title: "9차시: 데이터 다듬기"
-description: "이상값 필터링과 데이터 정제"
+title: "9차시: 데이터 정리와 시각화"
+description: "센서 데이터를 PC Python으로 정리하고, matplotlib과 plotly로 시각화합니다."
 ---
 
-# 데이터 다듬기
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-> 오늘의 질문: "이상한 숫자는 어떻게 걸러낼까?"
+{/* 섹션 A: 헤더 */}
 
-*이 페이지는 준비 중입니다.*
+<p style="color: var(--sl-color-gray-3); margin-bottom: 0.25rem;">2막 바이브 코딩으로 확장 &gt; 9차시</p>
+
+# 데이터 정리와 시각화
+
+> **오늘의 질문:** "센서 데이터를 '예쁜 대시보드'로 만들려면 먼저 무엇을 해야 할까?"
+
+<p style="color: var(--sl-color-gray-3);">
+50분 | PC Python (컴퓨터 Python) | 난이도 ●●●○○
+</p>
+
+---
+
+{/* 섹션 B: 준비물 */}
+
+## 준비물
+
+| 준비물 | 설명 |
+|--------|------|
+| 컴퓨터 | Python과 필요한 라이브러리가 설치된 PC (Pico는 사용하지 않습니다) |
+| CSV 데이터 파일 | 이전 차시에서 수집한 센서 데이터. 없다면 아래 샘플 데이터를 사용합니다. |
+| AI 챗봇 | Claude, ChatGPT 등 — 바이브 코딩에 사용 |
+
+:::caution[이번 차시는 Pico가 아닌 PC Python을 사용합니다]
+지금까지는 Pico에서 MicroPython을 실행했지만, 이번 차시에서는 **컴퓨터에 설치된 Python**을 사용합니다. Thonny에서 인터프리터를 **"Local Python 3"**으로 변경하거나, VS Code, 주피터 노트북 등을 사용하세요.
+:::
+
+:::tip[필요한 라이브러리 설치]
+터미널(명령 프롬프트)에서 다음 명령어를 실행하세요:
+```
+pip install pandas matplotlib plotly
+```
+학교 컴퓨터에 이미 설치되어 있다면 이 단계는 건너뛰세요.
+:::
+
+---
+
+{/* 섹션 C: 단계별 활동 가이드 */}
+
+## 활동 가이드
+
+### Step 1. AI에게 데이터 시각화 코드 요청하기 (10분)
+
+바이브 코딩으로 데이터 시각화 코드를 만듭니다.
+
+1. AI 챗봇을 열고 [바이브 코딩 프롬프트](#바이브-코딩-프롬프트) 탭의 예시를 참고하여 프롬프트를 보냅니다.
+2. AI가 생성한 코드를 확인합니다 — pandas, matplotlib 사용법이 포함되어 있을 겁니다.
+3. 컴퓨터의 Python에서 실행합니다.
+
+:::note[CSV 파일이 없다면]
+이전 차시에서 저장한 CSV 파일이 없어도 괜찮습니다. 기본 코드에 **샘플 데이터를 CSV로 저장하는 코드**가 포함되어 있으니, 먼저 그것을 실행하면 됩니다.
+:::
+
+### Step 2. 이상값 확인하고 제거하기 (10분)
+
+1. AI가 생성한 코드(또는 기본 코드)를 실행하면 그래프가 나타납니다.
+2. 그래프에서 **이상하게 튀는 값**이 보이나요? 이것이 이상값(outlier)입니다.
+3. 코드에서 이상값을 제거하는 부분을 찾아보세요.
+4. 제거 전후의 그래프를 비교합니다.
+
+:::tip[이상값 판단 기준]
+- CO2 데이터: 0ppm이나 10000ppm은 확실히 이상값입니다.
+- 온도 데이터: -40도나 100도는 교실에서 나올 수 없는 값입니다.
+- 기준이 애매한 경우, AI에게 "이 데이터에서 이상값을 어떤 기준으로 판단하면 좋을까?"라고 물어보세요.
+:::
+
+### Step 3. 이동평균 필터 적용하기 (15분)
+
+1. 이상값을 제거한 데이터에 **이동평균 필터**를 적용합니다.
+2. 윈도우 크기를 **3, 5, 10**으로 바꿔가며 그래프가 어떻게 달라지는지 관찰합니다.
+3. **원본 데이터 + 이동평균**을 같은 그래프에 겹쳐 그려 비교합니다.
+
+#### 이동평균 비교표
+
+| 윈도우 크기 | 그래프 특징 | 급변 구간 반영도 | 노이즈 제거 효과 |
+|------------|-----------|---------------|----------------|
+| 원본 (없음) | 들쭉날쭉 | 즉시 반영 | 없음 |
+| 3 | | | |
+| 5 | | | |
+| 10 | | | |
+
+### Step 4. 토론하기 (15분)
+
+1. **"이상값을 제거하면 데이터가 더 '진짜'에 가까워지나요?"** 혹시 중요한 데이터를 버린 건 아닐까요?
+2. **"이동평균 윈도우 크기를 크게 하면 무엇이 좋고, 무엇을 잃나요?"** (부드러움 vs 반응 속도)
+3. **"어떤 시각화가 더 효과적인가요?"** 선 그래프 vs 막대 그래프, 색상의 의미 등
+4. **"바이브 코딩으로 시각화 코드를 만들어본 소감은?"** 직접 코딩과 비교하면?
+
+---
+
+{/* 섹션 D: 코드 예시 */}
+
+## 코드
+
+<Tabs>
+  <TabItem label="바이브 코딩 프롬프트">
+
+### AI에게 보낼 프롬프트
+
+```
+data.csv 파일을 읽어서 온도 변화 그래프를 그려줘.
+Python의 pandas와 matplotlib를 사용해줘.
+
+data.csv 형식:
+time,co2,temperature,humidity
+0,620,23.1,45
+30,635,23.2,46
+60,658,23.2,47
+...
+
+다음 기능을 포함해줘:
+1. CSV 파일 읽기 (pandas)
+2. 이상값 제거: co2가 100 미만이거나 5000 초과인 행 제거
+3. 이동평균 필터 (윈도우 3, 5) 계산
+4. 그래프 그리기:
+   - 원본 데이터 (회색 점선)
+   - 이동평균 3 (파란색)
+   - 이동평균 5 (빨간색)
+   - 범례, x축 레이블(시간), y축 레이블(CO2 ppm)
+   - 제목: "교실 CO2 변화"
+5. 이상값 제거 전후 기본 통계(평균, 최대, 최소) 출력
+
+CSV 파일이 없으면 샘플 데이터를 먼저 생성하는 코드도 포함해줘.
+```
+
+:::tip[프롬프트 활용법]
+이 프롬프트를 그대로 사용해도 좋고, 자기 데이터에 맞게 수정해도 좋습니다. 데이터 형식(열 이름)과 이상값 기준을 자기 센서에 맞게 바꾸세요. AI에게 "인터랙티브 그래프를 만들어줘. plotly 사용"이라고 추가하면 더 멋진 결과물이 나옵니다.
+:::
+
+  </TabItem>
+  <TabItem label="기본 코드">
+
+### 기본 코드
+
+AI가 생성할 수 있는 완성 코드 예시입니다. **PC Python**에서 실행하세요.
+
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# === 샘플 데이터 생성 (CSV 파일이 없는 경우) ===
+sample_data = {
+    'time': list(range(0, 600, 30)),  # 0~570초, 30초 간격
+    'co2': [
+        620, 635, 658, 680, 715, 748, 790, 835, 880, 925,
+        910, 850, 780, 720, 670, 640, 615, 600, 610, 625
+    ],
+    'temperature': [
+        23.1, 23.2, 23.2, 23.3, 23.3, 23.4, 23.4, 23.5, 23.5, 23.6,
+        23.5, 23.3, 23.0, 22.8, 22.5, 22.3, 22.2, 22.1, 22.2, 22.3
+    ],
+    'humidity': [
+        45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
+        53, 51, 48, 46, 44, 43, 42, 42, 43, 43
+    ]
+}
+
+# 이상값 추가 (현실적인 센서 오류)
+sample_data['co2'][3] = 9999   # 이상값
+sample_data['co2'][7] = 0      # 이상값
+sample_data['co2'][15] = -10   # 이상값
+
+# DataFrame 생성
+df = pd.DataFrame(sample_data)
+
+# CSV 파일로 저장 (다음에 재사용 가능)
+df.to_csv('data.csv', index=False)
+print("data.csv 파일 저장 완료")
+
+# === 1단계: 원본 데이터 통계 ===
+print("\n=== 원본 데이터 ===")
+print(f"데이터 수: {len(df)}")
+print(f"CO2 평균: {df['co2'].mean():.1f} ppm")
+print(f"CO2 최소: {df['co2'].min()}, 최대: {df['co2'].max()}")
+
+# === 2단계: 이상값 제거 ===
+df_clean = df[(df['co2'] >= 100) & (df['co2'] <= 5000)].copy()
+
+print(f"\n=== 이상값 제거 후 ===")
+print(f"데이터 수: {len(df_clean)} ({len(df) - len(df_clean)}개 제거)")
+print(f"CO2 평균: {df_clean['co2'].mean():.1f} ppm")
+print(f"CO2 최소: {df_clean['co2'].min()}, 최대: {df_clean['co2'].max()}")
+
+# === 3단계: 이동평균 필터 ===
+df_clean['co2_ma3'] = df_clean['co2'].rolling(window=3).mean()
+df_clean['co2_ma5'] = df_clean['co2'].rolling(window=5).mean()
+
+# === 4단계: 그래프 그리기 ===
+plt.figure(figsize=(12, 6))
+
+# 원본 (이상값 포함)
+plt.plot(df['time'], df['co2'], 'o--', color='gray',
+         alpha=0.4, label='Original (with outliers)', markersize=3)
+
+# 이상값 제거 후
+plt.plot(df_clean['time'], df_clean['co2'], 'o-', color='lightblue',
+         alpha=0.6, label='Cleaned', markersize=4)
+
+# 이동평균
+plt.plot(df_clean['time'], df_clean['co2_ma3'], '-', color='blue',
+         linewidth=2, label='Moving Avg (3)')
+plt.plot(df_clean['time'], df_clean['co2_ma5'], '-', color='red',
+         linewidth=2, label='Moving Avg (5)')
+
+# 1000ppm 기준선
+plt.axhline(y=1000, color='orange', linestyle='--', alpha=0.7, label='1000ppm line')
+
+# 환기 시점 표시
+plt.axvline(x=270, color='green', linestyle=':', alpha=0.7, label='Ventilation start')
+
+plt.xlabel('Time (seconds)')
+plt.ylabel('CO2 (ppm)')
+plt.title('Classroom CO2 Change')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+
+plt.savefig('co2_chart.png', dpi=150)
+print("\nco2_chart.png 저장 완료")
+plt.show()
+```
+
+### 줄별 해설
+
+| 줄 | 코드 | 설명 |
+|----|------|------|
+| 1-2 | `import pandas, matplotlib` | 데이터 분석 라이브러리(pandas)와 그래프 라이브러리(matplotlib)를 불러옵니다. |
+| 34 | `df = pd.DataFrame(sample_data)` | 딕셔너리를 pandas DataFrame(표)으로 변환합니다. |
+| 42 | `df[(df['co2'] >= 100) & ...]` | CO2가 100~5000 범위인 행만 남기고 나머지를 제거합니다. |
+| 50 | `.rolling(window=3).mean()` | pandas의 이동평균 함수입니다. 3개씩 묶어 평균을 계산합니다. |
+| 55-68 | `plt.plot(...)` | 여러 데이터를 같은 그래프에 겹쳐 그립니다. 색상, 선 스타일, 범례를 지정합니다. |
+| 76 | `plt.savefig(...)` | 그래프를 이미지 파일로 저장합니다. 발표 자료에 사용할 수 있습니다. |
+
+  </TabItem>
+  <TabItem label="도전 코드">
+
+### 도전 코드: plotly 인터랙티브 웹 대시보드
+
+마우스로 확대/축소, 특정 구간 선택이 가능한 인터랙티브 대시보드를 HTML 파일로 저장합니다.
+
+```python
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+# 샘플 데이터 생성
+sample_data = {
+    'time_min': [f"{i*0.5:.1f}" for i in range(20)],
+    'co2': [
+        620, 635, 658, 680, 715, 748, 790, 835, 880, 925,
+        910, 850, 780, 720, 670, 640, 615, 600, 610, 625
+    ],
+    'temperature': [
+        23.1, 23.2, 23.2, 23.3, 23.3, 23.4, 23.4, 23.5, 23.5, 23.6,
+        23.5, 23.3, 23.0, 22.8, 22.5, 22.3, 22.2, 22.1, 22.2, 22.3
+    ],
+    'humidity': [
+        45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
+        53, 51, 48, 46, 44, 43, 42, 42, 43, 43
+    ]
+}
+
+df = pd.DataFrame(sample_data)
+
+# 이동평균
+df['co2_ma3'] = df['co2'].rolling(window=3).mean()
+
+# 서브플롯 3개 (CO2, 온도, 습도)
+fig = make_subplots(
+    rows=3, cols=1,
+    subplot_titles=('CO2 (ppm)', 'Temperature (C)', 'Humidity (%)'),
+    shared_xaxes=True,
+    vertical_spacing=0.08
+)
+
+# CO2 그래프
+fig.add_trace(
+    go.Scatter(x=df['time_min'], y=df['co2'],
+               mode='lines+markers', name='CO2',
+               line=dict(color='steelblue')),
+    row=1, col=1
+)
+fig.add_trace(
+    go.Scatter(x=df['time_min'], y=df['co2_ma3'],
+               mode='lines', name='CO2 (MA3)',
+               line=dict(color='red', width=2)),
+    row=1, col=1
+)
+# 1000ppm 기준선
+fig.add_hline(y=1000, line_dash="dash", line_color="orange",
+              annotation_text="1000ppm", row=1, col=1)
+
+# 온도 그래프
+fig.add_trace(
+    go.Scatter(x=df['time_min'], y=df['temperature'],
+               mode='lines+markers', name='Temperature',
+               line=dict(color='tomato')),
+    row=2, col=1
+)
+
+# 습도 그래프
+fig.add_trace(
+    go.Scatter(x=df['time_min'], y=df['humidity'],
+               mode='lines+markers', name='Humidity',
+               line=dict(color='mediumseagreen')),
+    row=3, col=1
+)
+
+# 환기 시점 표시
+fig.add_vline(x="5.0", line_dash="dot", line_color="green",
+              annotation_text="Ventilation", row=1, col=1)
+
+fig.update_layout(
+    title_text="Classroom Environment Dashboard",
+    height=700,
+    showlegend=True,
+    template="plotly_white"
+)
+
+fig.update_xaxes(title_text="Time (min)", row=3, col=1)
+
+# HTML 파일로 저장
+fig.write_html("dashboard.html")
+print("dashboard.html 저장 완료!")
+print("브라우저에서 열면 인터랙티브 대시보드를 볼 수 있습니다.")
+print("마우스로 드래그하여 확대, 더블클릭으로 복원할 수 있습니다.")
+
+fig.show()
+```
+
+:::note[코드 읽어보기]
+plotly는 **인터랙티브 그래프**를 만드는 라이브러리입니다. matplotlib과 달리 마우스로 확대/축소, 특정 데이터 포인트에 마우스를 올리면 값이 표시되는 등 웹 기반 대시보드를 만들 수 있습니다. `fig.write_html("dashboard.html")`로 저장하면 인터넷 없이도 브라우저에서 볼 수 있는 대시보드 파일이 생깁니다. 발표 자료로 활용하기에 좋습니다.
+:::
+
+  </TabItem>
+</Tabs>
+
+---
+
+{/* 섹션 E: 와우 모먼트 */}
+
+## 잠깐, 방금 무슨 일이 일어난 걸까요?
+
+여러분이 방금 한 일을 다시 생각해보세요.
+
+AI에게 **"CSV 데이터를 그래프로 그려줘"**라고 프롬프트를 보내고
+**→** AI가 **pandas + matplotlib 코드**를 생성하고
+**→** 20줄의 숫자였던 데이터가 **눈에 보이는 그래프**로 변하고
+**→** 이상값을 제거하니 **숨겨진 패턴**이 드러나고
+**→** 이동평균을 적용하니 **추세**가 선명해졌습니다.
+
+이것이 바로 **데이터 전처리(preprocessing)**와 **시각화(visualization)**입니다. 현실 세계의 모든 데이터 분석 — 날씨 예보, 주식 차트, 의료 데이터, AI 학습 데이터 — 에서 가장 먼저 하는 작업입니다. "쓰레기를 넣으면 쓰레기가 나온다(Garbage In, Garbage Out)"는 말이 있습니다. 좋은 분석은 깨끗한 데이터에서 시작합니다.
+
+---
+
+{/* 섹션 F: 대시보드/데이터 활동 */}
+
+## 대시보드 데이터로 생각하기
+
+전처리 전후의 변화를 정리해봅시다.
+
+#### 전처리 효과 비교표
+
+| 단계 | 데이터 개수 | 평균 | 최솟값 | 최댓값 | 범위 |
+|------|-----------|------|--------|--------|------|
+| 원본 데이터 | | | | | |
+| 이상값 제거 후 | | | | | |
+| 이동평균(3) 적용 후 | | | | | |
+| 이동평균(5) 적용 후 | | | | | |
+
+1. **이상값을 제거하니 평균이 얼마나 바뀌었나요?** 왜 바뀌었을까요?
+2. **이동평균을 적용하니 최댓값과 최솟값의 범위가 줄었나요?**
+3. **어떤 그래프가 더 "정보를 잘 전달"하나요?** 원본? 이동평균? 왜 그렇게 생각하나요?
+
+:::note[시각화의 힘]
+20개의 숫자를 보고 "환기 효과"를 설명하기는 어렵습니다. 하지만 그래프 한 장이면 누구나 "아, CO2가 여기서 확 떨어지네!"라고 바로 이해합니다. **같은 데이터도 표현 방식에 따라 설득력이 달라집니다.** 이것이 데이터 시각화의 힘입니다.
+:::
+
+---
+
+{/* 섹션 G: 마무리 */}
+
+## 마무리
+
+### 오늘 배운 것
+
+- **PC Python 활용**: Pico의 MicroPython과 달리, PC Python에서는 pandas, matplotlib, plotly 같은 강력한 라이브러리를 사용할 수 있습니다.
+- **데이터 전처리**: 이상값 제거와 이동평균 필터로 노이즈를 줄이는 방법을 실습했습니다.
+- **시각화의 중요성**: 숫자만으로는 보이지 않던 패턴이 그래프로 표현하면 한눈에 드러납니다.
+
+### 다음 시간 미리보기
+
+:::tip[10차시 "AI 데이터 분석"]
+다음 시간에는 정리한 데이터를 **AI에게 보여주고 분석을 요청**합니다. AI가 사람이 놓친 패턴을 찾아줄까요? AI 분석에는 어떤 한계가 있을까요? 직접 확인합니다.
+:::
+
+---
+
+{/* 섹션 H: 체크리스트 */}
+
+## 자기 점검 체크리스트
+
+- [ ] AI에게 프롬프트를 보내 데이터 시각화 코드를 생성받았다
+- [ ] PC Python에서 코드를 실행하고 그래프를 확인했다
+- [ ] 이상값을 제거하고 전후 평균의 차이를 비교했다
+- [ ] 이동평균 윈도우 크기(3, 5)에 따른 그래프 변화를 관찰했다
+- [ ] 전처리 효과 비교표를 작성했다
+- [ ] (도전) plotly로 인터랙티브 대시보드(HTML)를 만들어봤다

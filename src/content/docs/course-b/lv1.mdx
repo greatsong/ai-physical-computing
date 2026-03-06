@@ -1,12 +1,311 @@
 ---
 title: "Lv.1 탐험가"
-description: "단일 센서 + 단순 출력 (3시간)"
+description: "단일 센서 + OLED 대시보드 프로젝트 (3시간)"
 ---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<p style="color: var(--sl-color-gray-3); margin-bottom: 0.25rem;">코스 B &gt; Lv.1</p>
 
 # Lv.1 탐험가
 
-> 단일 센서 + 단순 출력 (3시간)
+> **센서 하나와 OLED 대시보드로 나만의 측정기를 만들어보세요.**
 
-센서 하나를 골라 데이터를 읽고, 화면에 출력하는 프로젝트입니다. 코스 A에서 배운 기본기를 자기 주도로 적용해 봅니다.
+<p style="color: var(--sl-color-gray-3);">
+3시간 | 단일 센서 + OLED | 난이도 ●●○○○
+</p>
 
-*이 페이지는 준비 중입니다.*
+---
+
+## 미션
+
+센서 **1개**를 골라, OLED 화면에 데이터를 보기 좋게 표시하는 **나만의 대시보드 측정기**를 만드세요.
+
+### 완료 조건
+- [ ] 센서 1개에서 데이터를 정상적으로 읽을 수 있다
+- [ ] OLED에 센서 데이터가 실시간으로 표시된다
+- [ ] 조건문(`if`)으로 상태 판단이 포함되어 있다 (예: "좋음/나쁨")
+- [ ] 데이터를 CSV 파일에 자동 저장한다
+- [ ] 한 줄 설명을 작성할 수 있다
+
+---
+
+## 예시 프로젝트 3가지
+
+아래 중에서 골라도 되고, 완전히 새로운 프로젝트를 만들어도 돼요.
+
+<Tabs>
+  <TabItem label="교실 온도 대시보드">
+
+### 프로젝트 1: 교실 온도 대시보드
+
+**센서:** DHT20 온습도 센서 (I2C)
+
+**OLED 표시 내용:**
+- 현재 온도 (큰 글씨)
+- 현재 습도
+- 쾌적도 상태: "GOOD" / "OK" / "BAD"
+- 온도 막대그래프
+
+**코드 구조:**
+
+```python
+from machine import I2C, Pin
+import ssd1306
+import time
+
+i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+sensor_addr = 0x38
+time.sleep(0.1)
+
+TEMP_MIN = 20
+TEMP_MAX = 26
+
+def read_dht20():
+    i2c.writeto(sensor_addr, bytes([0xAC, 0x33, 0x00]))
+    time.sleep(0.08)
+    data = i2c.readfrom(sensor_addr, 7)
+    humidity = ((data[1] << 12) | (data[2] << 4) | (data[3] >> 4)) / 1048576 * 100
+    temperature = (((data[3] & 0x0F) << 16) | (data[4] << 8) | data[5]) / 1048576 * 200 - 50
+    return round(temperature, 1), round(humidity, 1)
+
+with open("temp_log.csv", "w") as f:
+    f.write("seconds,temp,humidity,status\n")
+
+start = time.time()
+
+while True:
+    try:
+        temp, humi = read_dht20()
+        elapsed = time.time() - start
+
+        if temp < TEMP_MIN:
+            status = "BAD-Cold"
+        elif temp > TEMP_MAX:
+            status = "BAD-Hot"
+        elif 40 <= humi <= 60:
+            status = "GOOD"
+        else:
+            status = "OK"
+
+        # OLED 대시보드
+        oled.fill(0)
+        oled.text(f"{temp}C  {humi}%", 0, 0, 1)
+        oled.hline(0, 12, 128, 1)
+        # 온도 막대그래프
+        bar_w = int((temp - 10) / 30 * 100)
+        oled.rect(0, 18, 104, 10, 1)
+        oled.fill_rect(2, 20, max(0, min(bar_w, 100)), 6, 1)
+        oled.text(f"Status: {status}", 0, 34, 1)
+        oled.show()
+
+        print(f"{temp}C, {humi}% -> {status}")
+
+        with open("temp_log.csv", "a") as f:
+            f.write(f"{elapsed},{temp},{humi},{status}\n")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+    time.sleep(2)
+```
+
+**확장 아이디어:**
+- 최고/최저 온도를 기록하여 함께 표시
+- 쾌적도에 따라 LED 색상 변경
+
+  </TabItem>
+  <TabItem label="소음 레벨 모니터">
+
+### 프로젝트 2: 소음 레벨 모니터
+
+**센서:** Grove 소리 센서 (ADC - A0)
+
+**OLED 표시 내용:**
+- 현재 소음 레벨 (0~100)
+- 레벨에 따른 막대그래프
+- 상태: "QUIET" / "NORMAL" / "LOUD!"
+- 조용한 시간 누적
+
+**코드 구조:**
+
+```python
+from machine import ADC, Pin, I2C
+import ssd1306
+import time
+
+i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+sound = ADC(Pin(26))
+
+THRESHOLD = 60
+
+with open("noise_log.csv", "w") as f:
+    f.write("seconds,level,status\n")
+
+start = time.time()
+quiet_time = 0
+
+while True:
+    try:
+        raw = sound.read_u16()
+        level = min(100, int(raw / 65535 * 100))
+        elapsed = time.time() - start
+
+        if level < 30:
+            status = "QUIET"
+            quiet_time += 1
+        elif level < THRESHOLD:
+            status = "NORMAL"
+            quiet_time += 1
+        else:
+            status = "LOUD!"
+            quiet_time = 0
+
+        oled.fill(0)
+        oled.text(f"Noise: {level}%", 0, 0, 1)
+        oled.rect(0, 14, 128, 12, 1)
+        oled.fill_rect(2, 16, min(level, 124), 8, 1)
+        oled.text(f"Status: {status}", 0, 32, 1)
+        oled.text(f"Quiet: {quiet_time}s", 0, 48, 1)
+        oled.show()
+
+        print(f"Noise: {level}% | {status}")
+
+        with open("noise_log.csv", "a") as f:
+            f.write(f"{elapsed},{level},{status}\n")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+    time.sleep(1)
+```
+
+**확장 아이디어:**
+- 소음 기준치를 여러 단계로 나누기
+- 하루 중 가장 조용했던 시간대 기록
+
+  </TabItem>
+  <TabItem label="자동 조명 측정기">
+
+### 프로젝트 3: 자동 조명 측정기
+
+**센서:** Grove 빛 센서 (ADC - A0)
+
+**OLED 표시 내용:**
+- 현재 밝기 값과 막대그래프
+- 상태: "DARK" / "GOOD" / "BRIGHT"
+- 조명 ON/OFF 추천
+
+**코드 구조:**
+
+```python
+from machine import ADC, Pin, I2C
+import ssd1306
+import time
+
+i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+light = ADC(Pin(26))
+led = Pin("LED", Pin.OUT)
+
+with open("light_log.csv", "w") as f:
+    f.write("seconds,brightness,led\n")
+
+start = time.time()
+
+while True:
+    try:
+        raw = light.read_u16()
+        brightness = round(raw / 65535 * 100, 1)
+        elapsed = time.time() - start
+
+        if brightness < 30:
+            status = "DARK"
+            recommend = "Light ON"
+            led.on()
+        elif brightness > 70:
+            status = "BRIGHT"
+            recommend = "Light OFF"
+            led.off()
+        else:
+            status = "GOOD"
+            recommend = "OK"
+            led.off()
+
+        oled.fill(0)
+        oled.text(f"Light: {brightness}%", 0, 0, 1)
+        oled.rect(0, 14, 128, 12, 1)
+        oled.fill_rect(2, 16, min(int(brightness * 1.24), 124), 8, 1)
+        oled.text(f"Status: {status}", 0, 32, 1)
+        oled.text(f"-> {recommend}", 0, 48, 1)
+        oled.show()
+
+        print(f"Light: {brightness}% | {status} | {recommend}")
+
+        with open("light_log.csv", "a") as f:
+            f.write(f"{elapsed},{brightness},{status}\n")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+    time.sleep(1)
+```
+
+**확장 아이디어:**
+- 밝기에 따라 LED 밝기 단계를 조절하기 (PWM 사용)
+- 급격한 밝기 변화 감지
+
+  </TabItem>
+</Tabs>
+
+---
+
+## 시간 배분 가이드
+
+| 시간 | 활동 | 팁 |
+|------|------|-----|
+| 0:00~0:20 | 프로젝트 선택 + 센서/OLED 연결 | [센서 도감](/code-human-textbook/appendix/sensor-catalog/)에서 센서를 골라요 |
+| 0:20~0:40 | 센서 데이터 읽기 코드 작성 | 코스 A에서 배운 코드를 참고하세요 |
+| 0:40~1:20 | OLED 대시보드 코드 작성 | 바이브 코딩을 활용해도 좋아요 |
+| 1:20~1:50 | 조건 판단 + 상태 표시 + CSV 저장 | if/elif/else로 상태를 나눠요 |
+| 1:50~2:20 | 테스트 + 디버깅 + 개선 | 실제 상황에서 동작하는지 확인해요 |
+| 2:20~2:40 | 대시보드 스크린샷 촬영 | 결과물을 기록하세요 |
+| 2:40~3:00 | 한 줄 설명 작성 + 발표 준비 | "이 프로젝트는 ___를 측정하여..." |
+
+---
+
+## 산출물 체크리스트
+
+- [ ] **작동하는 코드** -- `main.py`로 Pico에 저장
+- [ ] **OLED 대시보드 사진** -- 동작 중인 화면
+- [ ] **데이터 기록** -- 최소 30회 이상의 CSV 데이터
+- [ ] **한 줄 설명** -- "이 프로젝트는 ___을(를) 측정하여 ___을(를) 알 수 있는 측정기예요"
+
+### 한 줄 설명 예시
+
+- "이 프로젝트는 교실 온도를 측정하여 환기 시점을 OLED로 알려주는 측정기예요"
+- "이 프로젝트는 소음 레벨을 측정하여 조용한 시간을 기록하는 모니터예요"
+- "이 프로젝트는 밝기를 측정하여 자동으로 조명을 제어하는 장치예요"
+
+---
+
+## 평가 기준
+
+| 기준 | 내용 | 등급 |
+|------|------|------|
+| **작동** | 코드가 에러 없이 실행되고, 센서 값을 읽는가? | 필수 |
+| **대시보드** | OLED에 데이터가 보기 좋게 표시되는가? | 필수 |
+| **조건 판단** | `if/else`로 데이터에 의미를 부여했는가? | 우수 |
+| **저장** | 데이터가 CSV 파일로 자동 저장되는가? | 우수 |
+| **에러 처리** | `try/except`로 안정적으로 동작하는가? | 탁월 |
+| **창의성** | 독창적인 아이디어나 추가 기능이 있는가? | 탁월 |
+
+---
+
+## 다음 레벨로
+
+:::tip[Lv.1을 마쳤다면]
+축하해요! 다음 도전은 [Lv.2 발명가](/code-human-textbook/course-b/lv2/)예요. 센서 2개 이상을 조합하고, 바이브 코딩을 활용하여 스마트 시스템을 만들어요.
+:::

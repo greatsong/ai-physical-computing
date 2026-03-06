@@ -1,10 +1,394 @@
 ---
-title: "12차시: 72시간 측정 프로젝트"
-description: "장기 데이터 수집 프로젝트 실행"
+title: "12차시: 실시간 대시보드 제작"
+description: "바이브 코딩으로 OLED 종합 대시보드와 PC 웹 대시보드를 제작하여 센서 데이터를 실시간으로 시각화합니다."
 ---
 
-# 72시간 측정 프로젝트
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-> 오늘의 질문: "센서를 3일간 돌리면 무엇이 보일까?"
+{/* 섹션 A: 헤더 */}
 
-*이 페이지는 준비 중입니다.*
+<p style="color: var(--sl-color-gray-3); margin-bottom: 0.25rem;">3막 대시보드와 머신러닝 &gt; 12차시</p>
+
+# 실시간 대시보드 제작
+
+> **오늘의 질문:** "여러 센서 데이터를 한 화면에 보여주는 종합 대시보드를 만들 수 있을까?"
+
+<p style="color: var(--sl-color-gray-3);">
+50분 | 팀별 선택 센서 + OLED + PC | 난이도 ●●●●○
+</p>
+
+---
+
+{/* 섹션 B: 준비물 */}
+
+## 준비물
+
+| 준비물 | 설명 |
+|--------|------|
+| Raspberry Pi Pico WH + Grove Shield | 센서 데이터를 읽고 대시보드를 구동하는 메인 보드예요. |
+| 팀별 선택 센서 (1~3개) | 11차시에서 선택한 센서를 Grove 케이블로 연결해요. |
+| OLED 디스플레이 (SSD1306, I2C) | 128x64 픽셀 화면에 실시간 대시보드를 표시해요. |
+| USB 케이블 | Pico와 PC를 연결하여 serial 통신에 사용해요. |
+| 컴퓨터 (Thonny + Python 3 설치) | Pico 코드 작성 + PC 웹 대시보드 실행에 사용해요. |
+
+:::caution[OLED 라이브러리 설치]
+OLED를 사용하려면 `ssd1306` 라이브러리가 필요해요. Thonny에서 **Tools > Manage packages**를 열고 `ssd1306`을 검색하여 설치하세요. 또는 Thonny 쉘에서 아래 명령을 실행해요.
+```
+import mip
+mip.install("ssd1306")
+```
+:::
+
+---
+
+{/* 섹션 C: 단계별 활동 가이드 */}
+
+## 활동 가이드
+
+### Step 1. 바이브 코딩으로 대시보드 코드 생성 (10분)
+
+11차시에서 세운 바이브 코딩 전략에 따라, AI에게 대시보드 코드를 요청하세요.
+
+**바이브 코딩 프롬프트 작성 요령:**
+
+1. **하드웨어 명시**: "Raspberry Pi Pico WH", "Grove Shield", 센서 이름과 포트
+2. **출력 방식 명시**: "SSD1306 OLED I2C", "128x64 픽셀"
+3. **레이아웃 설명**: "위쪽에 온도 큰 글씨, 아래쪽에 막대그래프"
+4. **갱신 주기**: "1초마다 업데이트"
+5. **추가 요구**: "serial로 PC에도 데이터 전송"
+
+:::tip[프롬프트 예시]
+"Raspberry Pi Pico WH에서 Grove Shield를 사용해요. I2C 포트에 DHT20 온습도 센서와 SSD1306 OLED(128x64)가 연결되어 있어요. A0 포트에 소리 센서가 있어요. OLED에 실시간 대시보드를 만들어주세요. 첫 줄에 온도와 습도를 큰 글씨로, 두 번째 줄에 소음 레벨 막대그래프를, 세 번째 줄에 쾌적도 상태(좋음/보통/나쁨)를 표시해주세요. 1초마다 갱신하고, print()로도 데이터를 출력해주세요. MicroPython으로 작성해주세요."
+:::
+
+### Step 2. OLED 종합 대시보드 구현 (15분)
+
+AI가 생성한 코드를 Thonny에 붙여넣고, 팀의 센서에 맞게 수정하세요.
+
+**코드 검증 체크리스트:**
+- [ ] 센서 포트 번호가 실제 연결과 일치하는가?
+- [ ] OLED I2C 주소가 맞는가? (보통 0x3C)
+- [ ] 화면에 글자가 겹치지 않는가?
+- [ ] 갱신 주기가 적절한가? (너무 빠르면 깜빡임)
+
+:::note[AI 코드가 동작하지 않을 때]
+바이브 코딩으로 받은 코드가 바로 동작하지 않는 것은 정상이에요. 에러 메시지를 읽고, 센서 주소나 포트를 수정하고, 한 줄씩 테스트해보세요. 이 과정이 바로 **디버깅** 실력을 키우는 방법이에요.
+:::
+
+### Step 3. PC 웹 대시보드 제작 (15분)
+
+Pico에서 `print()`로 출력한 데이터를 PC에서 받아 실시간 그래프로 표시하는 **이중 대시보드**를 만들어보세요.
+
+**방법 1: matplotlib 실시간 그래프 (Python)**
+- Pico의 `print()` 출력을 serial로 PC에 전송해요
+- PC에서 `pyserial` + `matplotlib`로 실시간 그래프를 그려요
+
+**방법 2: HTML+JS 웹 대시보드**
+- Pico 데이터를 PC Python 서버가 받아서 웹 브라우저에 표시해요
+- 바이브 코딩으로 간단한 웹 대시보드 HTML을 생성할 수 있어요
+
+### Step 4. 통합 테스트 및 개선 (10분)
+
+OLED 대시보드와 PC 대시보드가 동시에 동작하는지 확인하세요.
+
+- OLED 화면의 레이아웃이 보기 좋은가?
+- PC에서 실시간 데이터가 잘 수신되는가?
+- 센서 값이 합리적인 범위인가?
+
+---
+
+{/* 섹션 D: 코드 예시 */}
+
+## 코드
+
+<Tabs>
+  <TabItem label="OLED 대시보드">
+
+### OLED 종합 대시보드 (MicroPython)
+
+```python
+from machine import I2C, Pin, ADC
+import ssd1306
+import time
+
+# I2C 설정 (OLED + DHT20 공유)
+i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+time.sleep(0.1)
+
+# OLED 디스플레이 초기화
+oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+
+# DHT20 센서 주소
+dht_addr = 0x38
+
+# 소리 센서 (ADC)
+sound = ADC(Pin(26))  # A0 포트
+
+def read_dht20():
+    """DHT20에서 온도와 습도를 읽습니다"""
+    i2c.writeto(dht_addr, bytes([0xAC, 0x33, 0x00]))
+    time.sleep(0.08)
+    data = i2c.readfrom(dht_addr, 7)
+    humidity = ((data[1] << 12) | (data[2] << 4) | (data[3] >> 4)) / 1048576 * 100
+    temperature = (((data[3] & 0x0F) << 16) | (data[4] << 8) | data[5]) / 1048576 * 200 - 50
+    return round(temperature, 1), round(humidity, 1)
+
+def read_sound_level():
+    """소리 센서의 값을 0~100 레벨로 변환합니다"""
+    raw = sound.read_u16()
+    level = min(100, int(raw / 65535 * 100))
+    return level
+
+def draw_bar(oled, x, y, width, height, value, max_val=100):
+    """OLED에 막대그래프를 그립니다"""
+    oled.rect(x, y, width, height, 1)  # 테두리
+    fill_width = int((value / max_val) * (width - 2))
+    if fill_width > 0:
+        oled.fill_rect(x + 1, y + 1, fill_width, height - 2, 1)
+
+def get_comfort_status(temp, humi):
+    """온습도에 따른 쾌적도 상태를 반환합니다"""
+    if 20 <= temp <= 26 and 40 <= humi <= 60:
+        return "GOOD"
+    elif 18 <= temp <= 28 and 30 <= humi <= 70:
+        return "OK"
+    else:
+        return "BAD"
+
+# 메인 루프: 실시간 대시보드
+print("=== 실시간 대시보드 시작 ===")
+
+while True:
+    try:
+        # 센서 데이터 읽기
+        temp, humi = read_dht20()
+        noise = read_sound_level()
+        status = get_comfort_status(temp, humi)
+
+        # OLED 화면 그리기
+        oled.fill(0)  # 화면 지우기
+
+        # 1행: 온도와 습도 (큰 정보)
+        oled.text(f"{temp}C", 0, 0, 1)
+        oled.text(f"{humi}%", 72, 0, 1)
+
+        # 2행: 구분선
+        oled.hline(0, 12, 128, 1)
+
+        # 3행: 소음 레벨 막대그래프
+        oled.text("Noise", 0, 16, 1)
+        draw_bar(oled, 48, 16, 76, 10, noise)
+
+        # 4행: 습도 막대그래프
+        oled.text("Humid", 0, 30, 1)
+        draw_bar(oled, 48, 30, 76, 10, humi)
+
+        # 5행: 쾌적도 상태
+        oled.text(f"Status: {status}", 0, 46, 1)
+
+        # 6행: 업데이트 표시
+        oled.text("* LIVE *", 40, 56, 1)
+
+        oled.show()  # 화면 갱신
+
+        # Serial 출력 (PC 대시보드용)
+        print(f"{temp},{humi},{noise},{status}")
+
+    except Exception as e:
+        oled.fill(0)
+        oled.text("ERROR", 0, 0, 1)
+        oled.text(str(e)[:16], 0, 12, 1)
+        oled.show()
+
+    time.sleep(1)
+```
+
+### 줄별 해설
+
+| 줄 | 코드 | 설명 |
+|----|------|------|
+| 7 | `ssd1306.SSD1306_I2C(128, 64, i2c)` | 128x64 픽셀 OLED를 I2C로 초기화해요. |
+| 32 | `oled.rect(x, y, w, h, 1)` | 사각형 테두리를 그려요. 마지막 `1`은 흰색이에요. |
+| 33 | `oled.fill_rect(...)` | 채워진 사각형을 그려요. 막대그래프의 채움 부분이에요. |
+| 50 | `oled.fill(0)` | 화면 전체를 검은색(0)으로 지워요. 매 프레임마다 새로 그려야 해요. |
+| 67 | `oled.show()` | 버퍼에 그린 내용을 실제 OLED 화면에 표시해요. |
+| 70 | `print(f"{temp},{humi},...")` | CSV 형식으로 serial 출력해서 PC에서 받을 수 있게 해요. |
+
+  </TabItem>
+  <TabItem label="PC 대시보드">
+
+### PC 실시간 대시보드 (Python + matplotlib)
+
+PC에서 실행하는 코드예요. Pico가 serial로 보내는 데이터를 받아 실시간 그래프를 그려요.
+
+```python
+# PC에서 실행 (Thonny가 아닌 터미널에서)
+# pip install pyserial matplotlib 필요
+
+import serial
+import matplotlib.pyplot as plt
+from collections import deque
+import time
+
+# Serial 포트 설정 (OS에 따라 다름)
+# Windows: "COM3", "COM4" 등
+# Mac: "/dev/tty.usbmodem..."
+# Linux: "/dev/ttyACM0"
+PORT = "COM3"  # 여러분의 포트로 수정하세요
+BAUD = 115200
+
+# 최근 60개 데이터만 유지 (60초분)
+temps = deque(maxlen=60)
+humis = deque(maxlen=60)
+noises = deque(maxlen=60)
+
+# 그래프 설정
+plt.ion()  # 인터랙티브 모드
+fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 8))
+fig.suptitle("Real-time Sensor Dashboard", fontsize=14)
+
+try:
+    ser = serial.Serial(PORT, BAUD, timeout=1)
+    print(f"연결됨: {PORT}")
+
+    while True:
+        line = ser.readline().decode().strip()
+        if not line:
+            continue
+
+        try:
+            parts = line.split(",")
+            temp = float(parts[0])
+            humi = float(parts[1])
+            noise = float(parts[2])
+            status = parts[3] if len(parts) > 3 else ""
+
+            temps.append(temp)
+            humis.append(humi)
+            noises.append(noise)
+        except (ValueError, IndexError):
+            continue
+
+        # 그래프 갱신
+        for ax in (ax1, ax2, ax3):
+            ax.clear()
+
+        ax1.plot(list(temps), color="tomato", linewidth=2)
+        ax1.set_ylabel("Temp (C)")
+        ax1.set_ylim(15, 35)
+        ax1.grid(True, alpha=0.3)
+
+        ax2.plot(list(humis), color="steelblue", linewidth=2)
+        ax2.set_ylabel("Humidity (%)")
+        ax2.set_ylim(20, 80)
+        ax2.grid(True, alpha=0.3)
+
+        ax3.bar(range(len(noises)), list(noises), color="orange")
+        ax3.set_ylabel("Noise Level")
+        ax3.set_ylim(0, 100)
+        ax3.set_xlabel("Time (seconds)")
+
+        plt.tight_layout()
+        plt.pause(0.1)
+
+except serial.SerialException as e:
+    print(f"포트 연결 실패: {e}")
+    print("Thonny를 종료한 뒤 다시 시도하세요.")
+except KeyboardInterrupt:
+    print("대시보드 종료")
+finally:
+    plt.ioff()
+    if 'ser' in dir():
+        ser.close()
+```
+
+:::caution[Thonny와 serial 충돌]
+Thonny가 Pico에 연결되어 있으면, PC Python에서 serial 포트를 열 수 없어요. **Thonny를 완전히 종료**한 뒤에 이 코드를 실행하세요. 코드를 `main.py`로 Pico에 저장해두면, Thonny 없이도 Pico가 자동으로 실행됩니다.
+:::
+
+:::note[deque란?]
+`deque(maxlen=60)`은 최대 60개까지만 데이터를 저장하는 자료구조예요. 새 데이터가 들어오면 가장 오래된 데이터가 자동으로 빠져요. 실시간 대시보드에서 최근 데이터만 보여줄 때 유용해요.
+:::
+
+  </TabItem>
+</Tabs>
+
+---
+
+{/* 섹션 E: 와우 모먼트 */}
+
+## 잠깐, 방금 무슨 일이 일어난 걸까요?
+
+여러분이 방금 한 일을 다시 생각해보세요.
+
+작은 OLED 화면에 **실시간으로 변하는 숫자와 그래프**가 나타나고 있어요. 동시에 PC 화면에서도 **같은 데이터가 실시간 차트**로 그려지고 있어요.
+
+이것은 단순한 "센서 읽기"가 아니에요. 여러분은 방금 **IoT(사물인터넷) 시스템의 핵심 구조**를 만든 거예요.
+
+- **센서 계층**: 물리 세계의 데이터를 수집
+- **엣지 디바이스**: Pico에서 데이터를 처리하고 OLED에 표시
+- **통신 계층**: serial로 PC에 데이터 전송
+- **클라우드/대시보드**: PC에서 실시간 시각화
+
+스마트홈의 온도 조절기, 공장의 생산 모니터링 시스템, 병원의 환자 모니터 -- 모두 이 구조의 확장이에요.
+
+---
+
+{/* 섹션 F: 대시보드/ML 활동 */}
+
+## 대시보드 개선 활동
+
+대시보드가 동작하면, 다음 개선 활동에 도전해보세요.
+
+### OLED 대시보드 개선 아이디어
+
+| 개선 사항 | 난이도 | 설명 |
+|-----------|--------|------|
+| 미니 그래프 | ●●○ | 최근 20개 데이터의 꺾은선 그래프를 OLED에 표시 |
+| 경고 깜빡임 | ●○○ | 위험 수준일 때 LED를 깜빡이거나 화면 반전 |
+| 화면 전환 | ●●○ | 버튼을 누르면 다른 화면(상세 정보)으로 전환 |
+| 최대/최소 표시 | ●○○ | 지금까지의 최대, 최소, 평균값을 함께 표시 |
+
+### PC 대시보드 도전
+
+센서 데이터를 serial로 PC에 전송하여 실시간 웹 대시보드를 만들어보세요.
+
+**바이브 코딩 프롬프트:**
+"Python으로 serial 포트에서 'temp,humi,noise,status' 형식의 데이터를 받아서, 간단한 HTML 웹 페이지에 실시간으로 표시하는 코드를 만들어줘. Flask를 사용하고, 1초마다 자동 갱신되게 해줘."
+
+:::note[13차시 ML과의 연결]
+오늘 대시보드에서 수집하는 데이터는 13차시 ML 학습의 입력 데이터가 돼요. 대시보드가 안정적으로 동작하면, 데이터를 CSV로 저장해두세요. 다음 시간에 그 데이터로 ML 모델을 학습시킬 거예요.
+:::
+
+---
+
+{/* 섹션 G: 마무리 */}
+
+## 마무리
+
+### 오늘 배운 것
+
+- **OLED 대시보드**: `ssd1306` 라이브러리로 텍스트, 막대그래프, 상태 표시를 구현했어요.
+- **이중 대시보드**: OLED(엣지)와 PC(서버) 두 곳에서 동시에 데이터를 시각화했어요.
+- **바이브 코딩 실전**: AI에게 대시보드 코드를 요청하고, 디버깅하고, 수정하는 과정을 경험했어요.
+- **Serial 통신**: `print()`를 통한 serial 출력으로 Pico-PC 간 데이터를 전송했어요.
+
+### 다음 시간 미리보기
+
+:::tip[13차시 "센서 데이터로 ML 입문"]
+다음 시간에는 Google Teachable Machine을 사용해서 **센서 데이터를 분류하는 ML 모델**을 만들어요. 소리를 분류하거나, 센서 패턴을 학습시키는 활동을 해요. 대시보드 데이터가 AI의 입력이 되는 과정을 경험해보세요!
+:::
+
+---
+
+{/* 섹션 H: 체크리스트 */}
+
+## 자기 점검 체크리스트
+
+- [ ] 바이브 코딩으로 대시보드 코드를 생성했다
+- [ ] AI 코드를 팀 센서에 맞게 수정하고 디버깅했다
+- [ ] OLED에 센서 데이터가 실시간으로 표시된다
+- [ ] 막대그래프 또는 상태 표시가 동작한다
+- [ ] Serial 출력으로 PC에서도 데이터를 확인했다
+- [ ] (도전) PC 실시간 matplotlib 대시보드를 실행했다
+- [ ] (도전) HTML 웹 대시보드를 만들어봤다
