@@ -70,11 +70,13 @@ CO2 > 1000 OR 온도 > 28°C → "Vent Soon"
 **OLED 대시보드 설계:**
 ```
 +---------------------------+
-| == Smart Vent ==          |
-| CO2 : 1234 ppm            |
-| Temp: 25.3 C              |
-| Humi: 58.2 %              |
-| >> VENT NOW! <<           |  ← 반전(흰 배경, 검은 글씨)
+|████ Smart Vent ███████████|  ← 반전 헤더
+|─────────────────────────--|
+| CO2 1234ppm               |
+| C [████████████░░░░]      |  ← CO2 프로그레스 바
+| T [████████░░░░░░░░] 25.3 |  ← 온도 프로그레스 바
+| H [██████████░░░░░░] 58.2 |  ← 습도 프로그레스 바
+|████ >> VENT NOW! << ██████|  ← 반전 경고
 +---------------------------+
 ```
 
@@ -136,15 +138,36 @@ while True:
 
     # OLED 대시보드
     oled.fill(0)
-    oled.text("== Smart Vent ==", 0, 0)
-    oled.text(f"CO2 : {co2} ppm", 4, 14)
-    oled.text(f"Temp: {temp} C", 4, 26)
-    oled.text(f"Humi: {humi} %", 4, 38)
+    # 헤더 바
+    oled.fill_rect(0, 0, 128, 12, 1)
+    oled.text("Smart Vent", 28, 2, 0)
+    oled.hline(0, 13, 128, 1)
+    # CO2 값 크게 표시
+    oled.text(f"CO2 {co2}ppm", 4, 16)
+    # 3개 미니 프로그레스 바
+    # CO2 바 (0~2000ppm)
+    oled.text("C", 0, 28)
+    co2_w = int(min(co2, 2000) / 2000 * 80)
+    oled.rect(10, 28, 82, 8, 1)
+    oled.fill_rect(12, 30, co2_w, 4, 1)
+    # Temp 바 (0~40C)
+    oled.text("T", 0, 38)
+    temp_w = int(min(max(temp, 0), 40) / 40 * 80)
+    oled.rect(10, 38, 82, 8, 1)
+    oled.fill_rect(12, 40, temp_w, 4, 1)
+    oled.text(f"{temp}", 96, 38)
+    # Humi 바 (0~100%)
+    oled.text("H", 0, 48)
+    humi_w = int(min(humi, 100) / 100 * 80)
+    oled.rect(10, 48, 82, 8, 1)
+    oled.fill_rect(12, 50, humi_w, 4, 1)
+    oled.text(f"{humi}", 96, 48)
+    # 상태 표시
     if need_vent:
-        oled.fill_rect(0, 52, 128, 12, 1)
-        oled.text(f">> {status} <<", 16, 54, 0)
+        oled.fill_rect(0, 56, 128, 8, 1)
+        oled.text(f">> {status} <<", 4, 56, 0)
     else:
-        oled.text(f"[{status}]", 4, 54)
+        oled.text(f"[{status}]", 80, 16)
     oled.show()
 
     print(f"CO2:{co2}ppm T:{temp}C H:{humi}% [{status}]")
@@ -158,7 +181,9 @@ while True:
 | 4-7 | I2C 설정 | DHT20(0x38), SCD41(0x62), OLED(0x3C)이 같은 I2C1 버스를 공유합니다. 주소가 모두 다르므로 충돌하지 않습니다. |
 | 22-26 | `read_scd41()` | 읽기 명령(0xEC, 0x05)만 보냅니다. 시작 명령은 루프 밖에서 이미 보냈으므로 여기서 다시 보내지 않습니다. |
 | 29-31 | 주기 측정 시작 | `bytes([0x21, 0xB1])`은 "5초마다 자동으로 측정하라"는 명령입니다. **한 번만** 호출합니다. |
-| 46-49 | 반전 표시 | `fill_rect`로 흰 배경을 그린 뒤, `oled.text(..., 0)`으로 검은 글씨를 씁니다. 경고를 눈에 띄게 만듭니다. |
+| 40 | `oled.fill_rect(0, 0, 128, 12, 1)` | 반전 헤더 바를 그립니다. 흰 배경 위에 검은 글씨로 "Smart Vent"를 표시합니다. |
+| 47-62 | 3개 프로그레스 바 | CO2(0~2000ppm), 온도(0~40도), 습도(0~100%)를 각각 테두리 있는 프로그레스 바로 시각화합니다. |
+| 64-68 | 반전 경고 표시 | `fill_rect`로 흰 배경을 그린 뒤, `oled.text(..., 0)`으로 검은 글씨를 씁니다. 경고를 눈에 띄게 만듭니다. |
 
 **바이브 코딩 활용 포인트:**
 - OLED 레이아웃 코드를 AI에게 요청하세요.
@@ -168,6 +193,126 @@ while True:
 - 환기 시작/종료 시 CO2 변화를 기록하여 환기 효과 측정
 - LED로 환기 상태를 색상으로 표시
 - CSV 파일에 CO2 히스토리 저장
+
+#### PC 실시간 대시보드
+
+Pico에서 시리얼로 출력하는 CO2/온도/습도 데이터를 PC에서 4개 패널로 실시간 시각화합니다. CO2 위험 구간, 온도 쾌적 구간, 환기 상태를 한눈에 볼 수 있습니다.
+
+:::caution[사전 준비]
+1. `pip install pyserial matplotlib` (Mac: `pip3`)
+2. **Thonny를 먼저 닫아주세요!**
+3. 포트 이름을 환경에 맞게 수정하세요.
+:::
+
+```python
+# PC 실시간 대시보드 — 스마트 환기 시스템
+# 실행: python smart_vent_pc.py
+
+import serial
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from matplotlib.patches import FancyBboxPatch
+from collections import deque
+import time
+import re
+
+# ── 시리얼 연결 ──
+PORT = '/dev/tty.usbmodem1101'
+BAUD = 115200
+
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)
+
+# ── 데이터 버퍼 ──
+MAX_POINTS = 100
+idx_buf = deque(maxlen=MAX_POINTS)
+co2_buf = deque(maxlen=MAX_POINTS)
+temp_buf = deque(maxlen=MAX_POINTS)
+humi_buf = deque(maxlen=MAX_POINTS)
+count = 0
+
+# ── 그래프 설정 (2x2) ──
+plt.style.use('dark_background')
+fig, ((ax_co2, ax_temp), (ax_humi, ax_status)) = plt.subplots(2, 2, figsize=(12, 8))
+fig.suptitle('Smart Ventilation Dashboard', fontsize=14, color='cyan')
+
+# CO2 트렌드
+line_co2, = ax_co2.plot([], [], 'r-', linewidth=2)
+ax_co2.set_title('CO2 (ppm)', color='red')
+ax_co2.set_ylim(300, 2500)
+ax_co2.axhline(y=1000, color='orange', linestyle='--', alpha=0.5, label='Vent Soon')
+ax_co2.axhline(y=1500, color='red', linestyle='--', alpha=0.5, label='Vent Now!')
+ax_co2.legend(fontsize=8)
+ax_co2.grid(True, alpha=0.3)
+
+# 온도 트렌드
+line_temp, = ax_temp.plot([], [], '#ff8800', linewidth=2)
+ax_temp.set_title('Temperature (°C)', color='#ff8800')
+ax_temp.set_ylim(10, 40)
+ax_temp.axhspan(18, 28, alpha=0.1, color='green')
+ax_temp.grid(True, alpha=0.3)
+
+# 습도 트렌드
+line_humi, = ax_humi.plot([], [], 'cyan', linewidth=2)
+ax_humi.set_title('Humidity (%)', color='cyan')
+ax_humi.set_ylim(0, 100)
+ax_humi.axhspan(40, 60, alpha=0.1, color='green')
+ax_humi.grid(True, alpha=0.3)
+
+# 상태 표시
+ax_status.set_xlim(0, 10)
+ax_status.set_ylim(0, 10)
+ax_status.set_title('Status', color='white')
+ax_status.axis('off')
+status_text = ax_status.text(5, 5, 'Waiting...', ha='center', va='center',
+                              fontsize=24, color='gray',
+                              bbox=dict(boxstyle='round,pad=0.5', facecolor='#222'))
+
+def update(frame):
+    global count
+    try:
+        line = ser.readline().decode('utf-8').strip()
+        if not line:
+            return
+        # 파싱: "CO2:850ppm T:24.5C H:55.2% [Good]"
+        m = re.match(r'CO2:(\d+)ppm T:([\d.]+)C H:([\d.]+)% \[(.+)\]', line)
+        if not m:
+            return
+        co2 = int(m.group(1))
+        temp = float(m.group(2))
+        humi = float(m.group(3))
+        status = m.group(4)
+        count += 1
+
+        idx_buf.append(count)
+        co2_buf.append(co2)
+        temp_buf.append(temp)
+        humi_buf.append(humi)
+
+        x = list(idx_buf)
+        line_co2.set_data(x, list(co2_buf))
+        line_temp.set_data(x, list(temp_buf))
+        line_humi.set_data(x, list(humi_buf))
+
+        for ax in [ax_co2, ax_temp, ax_humi]:
+            ax.set_xlim(max(0, count - MAX_POINTS), count + 5)
+
+        # 상태 색상
+        colors = {'Good': '#00ff88', 'Vent Soon': '#ffaa00', 'VENT NOW!': '#ff3333'}
+        c = colors.get(status, 'gray')
+        status_text.set_text(f'{status}\nCO2: {co2} ppm')
+        status_text.set_color(c)
+
+        fig.canvas.manager.set_window_title(f'Vent — CO2:{co2} T:{temp} H:{humi} [{status}]')
+    except:
+        pass
+
+ani = FuncAnimation(fig, update, interval=5000, cache_frame_data=False)
+plt.tight_layout()
+plt.show()
+```
+
+4개 패널(CO2, 온도, 습도, 상태)로 환기 상태를 실시간 모니터링합니다. CO2가 1000ppm을 넘으면 주황색, 1500ppm을 넘으면 빨간색으로 경고합니다.
 
 {/* end */}
 
@@ -259,10 +404,37 @@ while True:
 
     # OLED 대시보드
     oled.fill(0)
-    oled.text("== Security ==", 8, 0)
-    oled.text(f"Dist: {dist:.0f} cm", 4, 16)
-    oled.text(f"Noise: {noise:.0f} %", 4, 28)
-    oled.text(f"[{status}]", 4, 44)
+    # 헤더 바
+    oled.fill_rect(0, 0, 128, 12, 1)
+    oled.text("Security", 32, 2, 0)
+    oled.hline(0, 13, 128, 1)
+    # 거리 표시 + 근접 인디케이터
+    oled.text(f"Dist: {dist:.0f}cm", 4, 16)
+    prox = min(int((DIST_THRESHOLD - min(dist, DIST_THRESHOLD)) / DIST_THRESHOLD * 5), 5)
+    for i in range(5):
+        x = 100 + i * 5
+        if i < prox:
+            oled.fill_rect(x, 16, 4, 8, 1)
+        else:
+            oled.rect(x, 16, 4, 8, 1)
+    # 소음 레벨 바
+    oled.text(f"Sound:{noise:.0f}%", 4, 28)
+    noise_w = int(min(noise, 100) / 100 * 48)
+    oled.rect(80, 28, 46, 8, 1)
+    oled.fill_rect(81, 29, noise_w, 6, 1)
+    # 상태 표시
+    oled.hline(0, 40, 128, 1)
+    if status == "INTRUDER!":
+        oled.fill_rect(0, 42, 128, 22, 1)
+        oled.text("!! INTRUDER !!", 8, 48, 0)
+    elif status == "ALERT!":
+        oled.fill_rect(4, 44, 8, 8, 1)
+        oled.text("ALERT!", 16, 44)
+        oled.text("Check area", 16, 54)
+    else:
+        oled.rect(4, 44, 8, 8, 1)
+        oled.text("Safe", 16, 44)
+        oled.text("Monitoring...", 16, 54)
     oled.show()
 
     print(f"D:{dist:.0f}cm N:{noise:.0f}% [{status}]")
@@ -278,6 +450,10 @@ while True:
 | 28 | `time_pulse_us(echo, 1, 30000)` | ECHO 핀이 HIGH가 되는 시간을 마이크로초 단위로 측정합니다. 이 시간을 거리로 변환합니다. |
 | 30 | `duration / 58` | 소리 속도(약 340m/s)로 왕복 거리를 계산합니다. 58은 변환 상수입니다. |
 | 35-37 | `alarm_on(level)` | 경보 레벨에 따라 부저 주파수를 바꿉니다. 레벨 3이면 2500Hz(높은 음), 레벨 1이면 1500Hz(낮은 음)입니다. |
+| 44 | `oled.fill_rect(0, 0, 128, 12, 1)` | 반전 헤더 바를 그립니다. 흰 배경 위에 검은 글씨로 "Security"를 표시합니다. |
+| 48-55 | 근접 인디케이터 | 거리 값에 따라 5개의 미니 사각형을 채워 근접도를 시각적으로 표현합니다. |
+| 57-60 | 소음 레벨 바 | 소음 퍼센트를 테두리 프로그레스 바로 표시합니다. |
+| 62-73 | 다단계 경보 표시 | INTRUDER(반전 전체), ALERT(경고 아이콘+텍스트), Safe(빈 아이콘+모니터링) 3가지 상태를 구분 표시합니다. |
 
 **바이브 코딩 활용 포인트:**
 - 경보 이벤트를 CSV 로그로 저장하는 코드를 AI에게 요청하세요.
@@ -287,6 +463,126 @@ while True:
 - 경보 발생 이력을 시간과 함께 CSV에 기록
 - 일정 시간 동안 경보가 없으면 "SECURED" 메시지 표시
 - OLED에 경보 횟수 카운터 추가
+
+#### PC 실시간 대시보드
+
+Pico에서 시리얼로 출력하는 거리/소음 데이터를 PC에서 레이더, 파형, 알림 로그로 실시간 시각화합니다.
+
+:::caution[사전 준비]
+1. `pip install pyserial matplotlib numpy` (Mac: `pip3`)
+2. **Thonny를 먼저 닫아주세요!**
+:::
+
+```python
+# PC 실시간 대시보드 — 간이 보안 시스템
+# 실행: python security_pc.py
+
+import serial
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from collections import deque
+import numpy as np
+import time
+import re
+
+# ── 시리얼 연결 ──
+PORT = '/dev/tty.usbmodem1101'
+BAUD = 115200
+
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)
+
+# ── 데이터 버퍼 ──
+MAX_POINTS = 200
+idx_buf = deque(maxlen=MAX_POINTS)
+dist_buf = deque(maxlen=MAX_POINTS)
+noise_buf = deque(maxlen=MAX_POINTS)
+alert_log = deque(maxlen=20)
+count = 0
+
+# ── 그래프 설정 ──
+plt.style.use('dark_background')
+fig = plt.figure(figsize=(14, 7))
+gs = fig.add_gridspec(2, 3, hspace=0.35, wspace=0.3)
+ax_radar = fig.add_subplot(gs[0, 0], polar=True)
+ax_wave = fig.add_subplot(gs[0, 1:])
+ax_log = fig.add_subplot(gs[1, :])
+fig.suptitle('Security Monitor', fontsize=14, color='cyan')
+
+# 거리 레이더 스타일
+ax_radar.set_title('Proximity', color='lime', fontsize=10)
+ax_radar.set_ylim(0, 100)
+theta = np.linspace(0, 2 * np.pi, 36)
+radar_line, = ax_radar.plot([], [], 'lime', linewidth=2)
+radar_fill = None
+
+# 소음 파형
+line_noise, = ax_wave.plot([], [], '#ff8800', linewidth=1)
+line_dist, = ax_wave.plot([], [], 'lime', linewidth=1)
+ax_wave.set_title('Distance & Noise', color='#ff8800', fontsize=10)
+ax_wave.set_ylim(0, 110)
+ax_wave.legend(['Noise %', 'Dist cm'], fontsize=8, loc='upper right')
+ax_wave.grid(True, alpha=0.3)
+
+# 알림 로그
+ax_log.set_title('Alert Log', color='red', fontsize=10)
+ax_log.axis('off')
+log_text = ax_log.text(0.02, 0.95, 'Waiting...', transform=ax_log.transAxes,
+                        fontsize=9, verticalalignment='top', color='gray',
+                        family='monospace')
+
+def update(frame):
+    global count, radar_fill
+    try:
+        line = ser.readline().decode('utf-8').strip()
+        if not line:
+            return
+        # 파싱: "D:45cm N:30% [Safe]"
+        m = re.match(r'D:(\d+)cm N:(\d+)% \[(.+)\]', line)
+        if not m:
+            return
+        dist = int(m.group(1))
+        noise = int(m.group(2))
+        status = m.group(3)
+        count += 1
+
+        idx_buf.append(count)
+        dist_buf.append(min(dist, 100))
+        noise_buf.append(noise)
+
+        if status != 'Safe':
+            alert_log.append(f'[{count:04d}] {status} D:{dist}cm N:{noise}%')
+
+        # 레이더 업데이트
+        r = max(5, 100 - min(dist, 100))
+        radar_data = np.full(36, r)
+        radar_line.set_data(theta, radar_data)
+        if radar_fill:
+            radar_fill.remove()
+        c = '#ff3333' if status == 'INTRUDER!' else '#ffaa00' if status == 'ALERT!' else '#00ff88'
+        radar_fill = ax_radar.fill(theta, radar_data, alpha=0.3, color=c)
+
+        # 파형 업데이트
+        x = list(idx_buf)
+        line_noise.set_data(x, list(noise_buf))
+        line_dist.set_data(x, list(dist_buf))
+        ax_wave.set_xlim(max(0, count - MAX_POINTS), count + 10)
+
+        # 로그 업데이트
+        log_str = '\n'.join(list(alert_log)[-15:]) if alert_log else 'No alerts'
+        log_text.set_text(log_str)
+        log_text.set_color('#ff3333' if status != 'Safe' else 'gray')
+
+        fig.canvas.manager.set_window_title(f'Security — D:{dist}cm N:{noise}% [{status}]')
+    except:
+        pass
+
+ani = FuncAnimation(fig, update, interval=300, cache_frame_data=False)
+plt.tight_layout()
+plt.show()
+```
+
+레이더 스타일 근접도 표시, 거리/소음 파형 그래프, 그리고 경보 이벤트 로그를 실시간으로 보여줍니다. 침입 감지 시 빨간색으로 변합니다.
 
 {/* end */}
 
@@ -311,11 +607,15 @@ noise_score: 100 - noise_pct (낮을수록 좋음)
 **OLED 대시보드 설계:**
 ```
 +---------------------------+
-|     == Comfort ==         |
-| T:24C H:55%               |
-| L:62% N:25%               |
-| Score: 84/100             |
-| ████████████████████░░░░  |
+|████ Comfort ██████████████|  ← 반전 헤더
+|─────────────────────────--|
+|  T    H    L    N         |
+| ┌──┐ ┌──┐ ┌──┐ ┌──┐      |  ← 4개 세로 바
+| |██| |██| |██| |██|      |
+| └──┘ └──┘ └──┘ └──┘      |
+|─────────────────────────--|
+| Score:84/100              |
+| [████████████████░░░░░░]  |  ← 프로그레스 바
 +---------------------------+
 ```
 
@@ -385,14 +685,33 @@ while True:
     score = calc_comfort(temp, humi, light_pct, noise_pct)
     elapsed = time.ticks_diff(time.ticks_ms(), start) // 1000
 
+    # 개별 점수 계산 (대시보드용)
+    t_sc = 100 if 20 <= temp <= 26 else (70 if 18 <= temp <= 28 else 30)
+    h_sc = 100 if 40 <= humi <= 60 else (70 if 30 <= humi <= 70 else 30)
+    l_sc = 100 if 30 <= light_pct <= 70 else 50
+    n_sc = max(0, int(100 - noise_pct))
+
     # OLED 대시보드
     oled.fill(0)
-    oled.text("== Comfort ==", 12, 0)
-    oled.text(f"T:{temp}C H:{humi}%", 4, 14)
-    oled.text(f"L:{light_pct:.0f}% N:{noise_pct:.0f}%", 4, 26)
-    oled.text(f"Score: {score}/100", 4, 42)
-    # 점수 막대그래프
-    oled.fill_rect(4, 56, score, 6, 1)
+    # 헤더 바
+    oled.fill_rect(0, 0, 128, 12, 1)
+    oled.text("Comfort", 36, 2, 0)
+    oled.hline(0, 13, 128, 1)
+    # 4개 미니 바 (T/H/L/N 나란히)
+    labels = ['T', 'H', 'L', 'N']
+    scores = [t_sc, h_sc, l_sc, n_sc]
+    for i in range(4):
+        x = 4 + i * 32
+        oled.text(labels[i], x + 4, 16)
+        bar_h = int(scores[i] / 100 * 18)
+        oled.rect(x, 25, 12, 20, 1)
+        oled.fill_rect(x + 1, 44 - bar_h, 10, bar_h, 1)
+    # 종합 점수
+    oled.hline(0, 47, 128, 1)
+    oled.text(f"Score:{score}/100", 4, 50)
+    # 점수 프로그레스 바 (테두리)
+    oled.rect(4, 58, 120, 6, 1)
+    oled.fill_rect(5, 59, min(score, 100) * 118 // 100, 4, 1)
     oled.show()
 
     # CSV 저장
@@ -410,6 +729,10 @@ while True:
 | 7-8 | `ADC(Pin(26))`, `ADC(Pin(27))` | 빛 센서(A0=GP26)와 소리 센서(A2=GP27)를 각각 다른 ADC 핀에 연결합니다. |
 | 22-43 | `calc_comfort()` | 4개 항목(온도, 습도, 조도, 소음)에 각각 0~100점을 매기고, 평균을 구합니다. 이것이 종합 쾌적도 점수입니다. |
 | 55-56 | `light.read_u16() / 65535 * 100` | ADC 원시값(0~65535)을 퍼센트(0~100%)로 변환합니다. |
+| 58-61 | 개별 점수 계산 | 대시보드의 4개 세로 바에 사용할 T/H/L/N 개별 점수를 한 줄 조건식으로 계산합니다. |
+| 65 | `oled.fill_rect(0, 0, 128, 12, 1)` | 반전 헤더 바를 그립니다. 흰 배경 위에 검은 글씨로 "Comfort"를 표시합니다. |
+| 68-73 | 4개 세로 바 | T(온도), H(습도), L(조도), N(소음) 점수를 각각 테두리 세로 막대 안에 채워 시각화합니다. |
+| 76-78 | 종합 점수 프로그레스 바 | 전체 점수를 테두리 가로 프로그레스 바로 표시합니다. 0~100점을 118픽셀로 매핑합니다. |
 
 **바이브 코딩 활용 포인트:**
 - 3개 센서 동시 읽기 + OLED 대시보드를 AI에게 요청하세요.
@@ -418,6 +741,133 @@ while True:
 **확장 아이디어:**
 - 시간대별 쾌적도 변화를 CSV로 기록하고, matplotlib으로 그래프 그리기
 - 쾌적도가 낮아지는 패턴을 분석하여 개선 방안 제시
+
+#### PC 실시간 대시보드
+
+Pico에서 시리얼로 출력하는 4개 환경 데이터를 PC에서 게이지 차트와 점수 트렌드로 실시간 시각화합니다.
+
+:::caution[사전 준비]
+1. `pip install pyserial matplotlib numpy` (Mac: `pip3`)
+2. **Thonny를 먼저 닫아주세요!**
+:::
+
+```python
+# PC 실시간 대시보드 — 종합 쾌적도 대시보드
+# 실행: python comfort_pc.py
+
+import serial
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from collections import deque
+import numpy as np
+import time
+import re
+
+# ── 시리얼 연결 ──
+PORT = '/dev/tty.usbmodem1101'
+BAUD = 115200
+
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)
+
+# ── 데이터 버퍼 ──
+MAX_POINTS = 100
+idx_buf = deque(maxlen=MAX_POINTS)
+score_buf = deque(maxlen=MAX_POINTS)
+count = 0
+
+# ── 그래프 설정 ──
+plt.style.use('dark_background')
+fig = plt.figure(figsize=(14, 7))
+gs = fig.add_gridspec(2, 4, hspace=0.35, wspace=0.4)
+
+# 4개 게이지 (상단)
+gauge_colors = ['#ff4444', '#44aaff', '#ffcc00', '#44ff88']
+gauge_labels = ['Temp', 'Humi', 'Light', 'Noise']
+gauge_keys = ['T', 'H', 'L', 'N']
+gauge_bars = []
+ax_gauges = []
+
+for i in range(4):
+    ax = fig.add_subplot(gs[0, i])
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 100)
+    ax.set_title(gauge_labels[i], color=gauge_colors[i], fontsize=10)
+    bar = ax.bar(0.5, 0, width=0.6, color=gauge_colors[i], alpha=0.8)
+    ax.set_xticks([])
+    ax.axhline(y=70, color='white', linestyle=':', alpha=0.3)
+    ax.axhline(y=30, color='white', linestyle=':', alpha=0.3)
+    ax.grid(True, axis='y', alpha=0.2)
+    ax_gauges.append(ax)
+    gauge_bars.append(bar)
+
+# 점수 트렌드 (하단 전체)
+ax_trend = fig.add_subplot(gs[1, :])
+line_score, = ax_trend.plot([], [], 'cyan', linewidth=2, marker='o', markersize=3)
+ax_trend.set_title('Comfort Score Trend', color='cyan', fontsize=10)
+ax_trend.set_ylim(0, 100)
+ax_trend.set_xlabel('Sample')
+ax_trend.set_ylabel('Score')
+ax_trend.axhspan(80, 100, alpha=0.1, color='green', label='Excellent')
+ax_trend.axhspan(50, 80, alpha=0.1, color='yellow', label='Normal')
+ax_trend.axhspan(0, 50, alpha=0.1, color='red', label='Poor')
+ax_trend.legend(fontsize=8, loc='upper left')
+ax_trend.grid(True, alpha=0.3)
+score_text = ax_trend.text(0.98, 0.95, '', transform=ax_trend.transAxes,
+                            ha='right', va='top', fontsize=16, color='cyan')
+
+fig.suptitle('Comfort Dashboard', fontsize=14, color='cyan')
+
+def calc_sub_scores(temp, humi, light, noise):
+    t = 100 if 20 <= temp <= 26 else (70 if 18 <= temp <= 28 else 30)
+    h = 100 if 40 <= humi <= 60 else (70 if 30 <= humi <= 70 else 30)
+    l = 100 if 30 <= light <= 70 else 50
+    n = max(0, 100 - noise)
+    return {'T': t, 'H': h, 'L': l, 'N': int(n)}
+
+def update(frame):
+    global count
+    try:
+        line = ser.readline().decode('utf-8').strip()
+        if not line:
+            return
+        # 파싱: "T:24.5 H:55.2 L:45 N:20 => 82점"
+        m = re.match(r'T:([\d.]+) H:([\d.]+) L:(\d+) N:(\d+) => (\d+)', line)
+        if not m:
+            return
+        temp = float(m.group(1))
+        humi = float(m.group(2))
+        light = float(m.group(3))
+        noise = float(m.group(4))
+        score = int(m.group(5))
+        count += 1
+
+        idx_buf.append(count)
+        score_buf.append(score)
+
+        subs = calc_sub_scores(temp, humi, light, noise)
+
+        # 게이지 업데이트
+        for i, key in enumerate(gauge_keys):
+            for rect in gauge_bars[i]:
+                rect.set_height(subs[key])
+
+        # 트렌드 업데이트
+        x = list(idx_buf)
+        line_score.set_data(x, list(score_buf))
+        ax_trend.set_xlim(max(0, count - MAX_POINTS), count + 5)
+        score_text.set_text(f'{score}/100')
+
+        fig.canvas.manager.set_window_title(f'Comfort — T:{temp} H:{humi} L:{light:.0f} N:{noise:.0f} => {score}')
+    except:
+        pass
+
+ani = FuncAnimation(fig, update, interval=2000, cache_frame_data=False)
+plt.tight_layout()
+plt.show()
+```
+
+상단에 온도/습도/조도/소음 4개 게이지가 실시간으로 움직이고, 하단에 종합 쾌적도 점수의 트렌드가 그려집니다. Excellent(80+)/Normal(50~80)/Poor(50 미만) 영역을 배경색으로 구분합니다.
 
 {/* end */}
 

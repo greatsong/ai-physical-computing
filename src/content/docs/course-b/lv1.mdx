@@ -68,11 +68,12 @@ DHT20(주소 0x38)과 OLED(주소 0x3C)은 모두 I2C 통신을 사용합니다.
 **OLED 대시보드 설계:**
 ```
 +---------------------------+
-| == Classroom ==           |
-| Temp: 24.5 C              |
-| Humi: 55.2 %              |
-| [Good]                    |
-| ████████████░░░░░░        |
+|████ Classroom ████████████|  ← 반전 헤더
+|─────────────────────────--|
+| 24.5 °C        H:55.2%   |
+|                 [Good]    |
+|─────────────────────────--|
+|████ 0 ──── sparkline ─ 40C|  ← 스파크라인 영역
 +---------------------------+
 ```
 
@@ -114,21 +115,41 @@ f = open("temp_log.csv", "a")
 f.write("time_s,temp,humi\n")
 start = time.ticks_ms()
 
+# 온도 이력 (스파크라인용, 최대 50개)
+temp_history = []
+
 # ── 메인 루프 ──
 while True:
     temp, humi = read_dht20()
     status = get_status(temp)
     elapsed = time.ticks_diff(time.ticks_ms(), start) // 1000
 
+    # 이력 저장
+    temp_history.append(int(temp))
+    if len(temp_history) > 50:
+        temp_history.pop(0)
+
     # OLED 대시보드
     oled.fill(0)
-    oled.text("== Classroom ==", 4, 0)
-    oled.text(f"Temp: {temp} C", 4, 16)
-    oled.text(f"Humi: {humi} %", 4, 28)
-    oled.text(f"[{status}]", 4, 44)
-    # 온도 막대그래프 (0~40도 범위)
-    bar_w = int(min(max(temp, 0), 40) / 40 * 100)
-    oled.fill_rect(14, 56, bar_w, 6, 1)
+    # 헤더 바
+    oled.fill_rect(0, 0, 128, 12, 1)
+    oled.text("Classroom", 28, 2, 0)
+    oled.hline(0, 13, 128, 1)
+    # 온습도 표시
+    oled.text(f"{temp}", 4, 16)
+    oled.text("o", 4 + len(str(temp)) * 8, 14)
+    oled.text("C", 4 + len(str(temp)) * 8 + 8, 16)
+    oled.text(f"H:{humi}%", 76, 16)
+    oled.text(f"[{status}]", 76, 28)
+    # 스파크라인 영역
+    oled.hline(0, 44, 128, 1)
+    oled.fill_rect(0, 46, 128, 18, 1)
+    oled.text("0", 0, 46, 0)
+    oled.text("40C", 100, 46, 0)
+    for i in range(len(temp_history)):
+        h = int((temp_history[i] - 10) / 30 * 14)
+        h = max(1, min(14, h))
+        oled.vline(2 + i, 62 - h, h, 1)
     oled.show()
 
     # CSV 저장
@@ -148,13 +169,109 @@ while True:
 | 12 | `bytes([0xAC, 0x33, 0x00])` | "측정을 시작하라"는 명령입니다. DHT20이 이해하는 프로토콜입니다. |
 | 15-16 | `humidity = ...` / `temperature = ...` | 7바이트 원시 데이터를 사람이 읽을 수 있는 온도(°C)와 습도(%)로 변환합니다. |
 | 19-24 | `get_status()` | 18도 미만이면 "Cold", 28도 초과면 "Hot", 그 사이면 "Good"으로 판정합니다. |
-| 33 | `oled.fill(0)` | OLED 화면을 검은색으로 지웁니다. 매 루프마다 화면을 새로 그립니다. |
-| 38 | `bar_w = int(...)` | 온도를 막대그래프 너비(픽셀)로 변환합니다. 0~40도를 0~100픽셀로 매핑합니다. |
+| 35 | `temp_history = []` | 최근 50개의 온도 값을 저장하는 리스트입니다. OLED 스파크라인 그래프에 사용합니다. |
+| 44 | `oled.fill_rect(0, 0, 128, 12, 1)` | 반전 헤더 바를 그립니다. 흰 배경 위에 검은 글씨로 제목을 표시합니다. |
+| 58-61 | 스파크라인 영역 | 온도 이력을 세로선으로 그립니다. 10~40도 범위를 14픽셀 높이로 매핑합니다. |
 
 **확장 아이디어:**
 - 최고/최저 온도를 기록하여 함께 표시하기
 - 온도 변화 추이를 OLED에 꺾은선 그래프로 표시하기
 - LED로 상태별 색상 표시 (빨강=Hot, 파랑=Cold, 초록=Good)
+
+#### PC 실시간 대시보드
+
+Pico에서 시리얼로 출력하는 데이터를 PC에서 실시간 그래프로 시각화합니다. 온도와 습도를 동시에 표시하고, 쾌적 온도 영역(18~28도)을 배경색으로 구분합니다.
+
+:::caution[사전 준비]
+1. 터미널에서 라이브러리를 설치하세요:
+   ```
+   pip install pyserial matplotlib
+   ```
+   (Mac: `pip3 install pyserial matplotlib`)
+2. **Thonny를 먼저 닫아주세요!** Thonny가 열려 있으면 시리얼 포트를 사용할 수 없습니다.
+3. 포트 이름 확인: Windows는 `COM3` 등, Mac은 `/dev/tty.usbmodem...` 형태입니다.
+:::
+
+```python
+# PC 실시간 대시보드 — 교실 온도 대시보드
+# 실행: python classroom_temp_pc.py
+
+import serial
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from collections import deque
+import time
+import re
+
+# ── 시리얼 연결 (포트 이름은 환경에 맞게 수정) ──
+# Windows: 'COM3', macOS: '/dev/tty.usbmodem...', Linux: '/dev/ttyACM0'
+PORT = '/dev/tty.usbmodem1101'
+BAUD = 115200
+
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)  # 연결 안정화
+
+# ── 데이터 버퍼 ──
+MAX_POINTS = 100
+times = deque(maxlen=MAX_POINTS)
+temps = deque(maxlen=MAX_POINTS)
+humis = deque(maxlen=MAX_POINTS)
+
+# ── 그래프 설정 ──
+plt.style.use('dark_background')
+fig, ax1 = plt.subplots(figsize=(10, 5))
+fig.suptitle('Classroom Temp Dashboard', fontsize=14, color='cyan')
+
+ax2 = ax1.twinx()
+line_temp, = ax1.plot([], [], 'r-o', markersize=3, label='Temp (°C)')
+line_humi, = ax2.plot([], [], 'c-s', markersize=3, label='Humi (%)')
+
+ax1.set_xlabel('Time (s)')
+ax1.set_ylabel('Temperature (°C)', color='red')
+ax2.set_ylabel('Humidity (%)', color='cyan')
+ax1.set_ylim(10, 40)
+ax2.set_ylim(0, 100)
+
+# 쾌적 온도 영역 표시
+ax1.axhspan(18, 28, alpha=0.15, color='green', label='Good (18-28°C)')
+ax1.axhspan(0, 18, alpha=0.10, color='blue', label='Cold')
+ax1.axhspan(28, 50, alpha=0.10, color='red', label='Hot')
+
+ax1.legend(loc='upper left')
+ax2.legend(loc='upper right')
+ax1.grid(True, alpha=0.3)
+
+# ── 실시간 업데이트 ──
+def update(frame):
+    try:
+        line = ser.readline().decode('utf-8').strip()
+        if not line:
+            return
+        # 파싱: "12s | 24.5°C 55.2% [Good]"
+        m = re.match(r'(\d+)s \| ([\d.]+)°C ([\d.]+)% \[(.+)\]', line)
+        if not m:
+            return
+        t = int(m.group(1))
+        temp = float(m.group(2))
+        humi = float(m.group(3))
+
+        times.append(t)
+        temps.append(temp)
+        humis.append(humi)
+
+        line_temp.set_data(list(times), list(temps))
+        line_humi.set_data(list(times), list(humis))
+        ax1.set_xlim(max(0, t - 200), t + 10)
+        fig.canvas.manager.set_window_title(f'Classroom — {temp}°C {humi}% [{m.group(4)}]')
+    except:
+        pass
+
+ani = FuncAnimation(fig, update, interval=2000, cache_frame_data=False)
+plt.tight_layout()
+plt.show()
+```
+
+실행하면 어두운 배경의 실시간 그래프 창이 열리고, Pico에서 2초마다 보내는 온도/습도 데이터가 그래프에 추가됩니다. 초록색 영역이 쾌적 온도(18~28도) 범위입니다.
 
 {/* end */}
 
@@ -170,10 +287,12 @@ while True:
 **OLED 대시보드 설계:**
 ```
 +---------------------------+
-|      == Noise ==          |
-|         45%               |
-| [Normal]                  |
-| ██ ██ ██ ░░ ░░ ░░ ░░     |
+|████ Noise Level ██████████|  ← 반전 헤더
+|─────────────────────────--|
+|          45%              |
+|        [Normal]           |
+|─────────────────────────--|
+| ██ ██ ██ ░░ ░░ ░░ ░░     |  ← 7단 레벨 미터
 +---------------------------+
 ```
 
@@ -221,16 +340,22 @@ while True:
 
     # OLED 대시보드
     oled.fill(0)
-    oled.text("== Noise ==", 20, 0)
-    oled.text(f"{pct:.0f}%", 48, 16)
-    oled.text(f"[{level_text}]", 4, 32)
-    # 레벨 미터 (막대 7칸)
+    # 헤더 바
+    oled.fill_rect(0, 0, 128, 12, 1)
+    oled.text("Noise Level", 24, 2, 0)
+    oled.hline(0, 13, 128, 1)
+    # 퍼센트 크게 표시
+    pct_str = f"{pct:.0f}%"
+    oled.text(pct_str, 64 - len(pct_str) * 4, 18)
+    oled.text(f"[{level_text}]", 64 - len(level_text) * 4 - 8, 30)
+    # 레벨 미터 (막대 7칸, 2px 간격)
+    oled.hline(0, 42, 128, 1)
     for i in range(7):
-        x = 14 + i * 16
+        x = 10 + i * 16
         if i < bars:
-            oled.fill_rect(x, 48, 12, 14, 1)
+            oled.fill_rect(x, 46, 12, 16, 1)
         else:
-            oled.rect(x, 48, 12, 14, 1)
+            oled.rect(x, 46, 12, 16, 1)
     oled.show()
 
     # CSV 저장
@@ -247,13 +372,113 @@ while True:
 |----|------|------|
 | 4 | `ADC(Pin(27))` | GP27(A2 포트)에서 아날로그 값을 읽습니다. ADC는 전압을 0~65535 사이의 숫자로 변환합니다. |
 | 12-20 | `get_noise_level()` | 소음 퍼센트에 따라 4단계(Quiet/Normal/Loud/V.Loud)로 판정합니다. `bars`는 레벨 미터에 채울 막대 수입니다. |
-| 34-39 | 레벨 미터 그리기 | 7개의 막대를 그리는데, `bars` 수만큼 채운 막대(`fill_rect`), 나머지는 빈 테두리(`rect`)로 표시합니다. |
 | 28 | `read_u16()` | ADC에서 16비트 값(0~65535)을 읽습니다. 소리가 클수록 값이 커집니다. |
+| 33 | `oled.fill_rect(0, 0, 128, 12, 1)` | 반전 헤더 바를 그립니다. 흰 배경 위에 검은 글씨로 "Noise Level"을 표시합니다. |
+| 37-38 | 퍼센트 가운데 정렬 | `64 - len(pct_str) * 4`로 문자열 길이에 따라 중앙에 위치시킵니다. |
+| 42-48 | 레벨 미터 그리기 | 7개의 막대를 그리는데, `bars` 수만큼 채운 막대(`fill_rect`), 나머지는 빈 테두리(`rect`)로 표시합니다. |
 
 **확장 아이디어:**
 - 일정 시간 동안 조용했던 누적 시간을 표시하기
 - 소음이 기준치를 넘으면 LED로 경고하기
 - 시간대별 소음 패턴을 CSV로 분석하기
+
+#### PC 실시간 대시보드
+
+Pico에서 시리얼로 출력하는 소음 데이터를 PC에서 VU 미터와 파형 그래프로 실시간 시각화합니다.
+
+:::caution[사전 준비]
+1. `pip install pyserial matplotlib numpy` (Mac: `pip3`)
+2. **Thonny를 먼저 닫아주세요!**
+:::
+
+```python
+# PC 실시간 대시보드 — 소음 레벨 모니터
+# 실행: python noise_level_pc.py
+
+import serial
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from collections import deque
+import numpy as np
+import time
+import re
+
+# ── 시리얼 연결 ──
+PORT = '/dev/tty.usbmodem1101'
+BAUD = 115200
+
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)
+
+# ── 데이터 버퍼 ──
+MAX_POINTS = 200
+times = deque(maxlen=MAX_POINTS)
+noise_pcts = deque(maxlen=MAX_POINTS)
+
+# ── 그래프 설정 ──
+plt.style.use('dark_background')
+fig, (ax_bar, ax_wave) = plt.subplots(1, 2, figsize=(12, 5),
+                                       gridspec_kw={'width_ratios': [1, 2]})
+fig.suptitle('Noise Level Monitor', fontsize=14, color='cyan')
+
+# VU 미터 (막대 차트)
+vu_labels = ['Q', 'N', 'L', 'VL']
+vu_colors = ['#00ff88', '#00ff88', '#ffaa00', '#ff3333']
+vu_bars = ax_bar.barh(vu_labels, [0, 0, 0, 0], color=vu_colors, height=0.6)
+ax_bar.set_xlim(0, 100)
+ax_bar.set_title('VU Meter', color='lime')
+ax_bar.set_xlabel('%')
+
+# 파형 (롤링)
+line_wave, = ax_wave.plot([], [], 'lime', linewidth=1)
+ax_wave.set_ylim(0, 100)
+ax_wave.set_title('Noise Waveform', color='lime')
+ax_wave.set_xlabel('Time (s)')
+ax_wave.set_ylabel('Level (%)')
+ax_wave.grid(True, alpha=0.3)
+
+# 영역 색상
+ax_wave.axhspan(0, 20, alpha=0.1, color='green')
+ax_wave.axhspan(20, 50, alpha=0.1, color='yellow')
+ax_wave.axhspan(50, 75, alpha=0.1, color='orange')
+ax_wave.axhspan(75, 100, alpha=0.1, color='red')
+
+def update(frame):
+    try:
+        line = ser.readline().decode('utf-8').strip()
+        if not line:
+            return
+        # 파싱: "12s | 45% [Normal]"
+        m = re.match(r'(\d+)s \| (\d+)% \[(.+)\]', line)
+        if not m:
+            return
+        t = int(m.group(1))
+        pct = float(m.group(2))
+        level = m.group(3)
+
+        times.append(t)
+        noise_pcts.append(pct)
+
+        # VU 미터 업데이트
+        levels = [min(pct, 20), min(max(pct - 20, 0), 30),
+                  min(max(pct - 50, 0), 25), max(pct - 75, 0)]
+        for bar, val in zip(vu_bars, levels):
+            bar.set_width(val)
+
+        # 파형 업데이트
+        line_wave.set_data(list(times), list(noise_pcts))
+        ax_wave.set_xlim(max(0, t - 100), t + 5)
+
+        fig.canvas.manager.set_window_title(f'Noise — {pct:.0f}% [{level}]')
+    except:
+        pass
+
+ani = FuncAnimation(fig, update, interval=500, cache_frame_data=False)
+plt.tight_layout()
+plt.show()
+```
+
+왼쪽에 VU 미터가 소음 레벨을 4단계로 보여주고, 오른쪽에 시간에 따른 소음 파형이 실시간으로 그려집니다. 배경색으로 Quiet(초록)/Normal(노랑)/Loud(주황)/V.Loud(빨강) 영역을 구분합니다.
 
 {/* end */}
 
@@ -269,12 +494,14 @@ while True:
 **OLED 대시보드 설계:**
 ```
 +---------------------------+
-|      == Light ==          |
-| 62% [Normal]              |
-|  ┌──────────────────────┐ |
-|  │  ╱╲   ╱╲  ╱╲╱╲      │ |
-|  │╱╱  ╲╱╱  ╲╱      ╲   │ |
-|  └──────────────────────┘ |
+|████ Light Meter ██████████|  ← 반전 헤더
+|─────────────────────────--|
+| 62%             [Normal]  |
+| [████████████████░░░░░░]  |  ← 프로그레스 바
+|─────────────────────────--|
+| ┌────── sparkline ──────┐ |
+| │ ╱╲  ╱╲╱╲              │ |  ← 영역 그래프
+| └───────────────────────┘ |
 +---------------------------+
 ```
 
@@ -324,13 +551,25 @@ while True:
 
     # OLED 대시보드
     oled.fill(0)
-    oled.text("== Light ==", 20, 0)
-    oled.text(f"{pct:.0f}% [{status}]", 4, 12)
-    # 실시간 그래프
-    for i, val in enumerate(graph_data):
-        x = 14 + i
-        h = int(val / 100 * 36)
-        oled.vline(x, 62 - h, h, 1)
+    # 헤더 바
+    oled.fill_rect(0, 0, 128, 12, 1)
+    oled.text("Light Meter", 24, 2, 0)
+    oled.hline(0, 13, 128, 1)
+    # 현재 값 + 상태
+    oled.text(f"{pct:.0f}%", 4, 16)
+    oled.text(f"[{status}]", 76, 16)
+    # 막대그래프
+    bar_w = int(min(pct, 100) / 100 * 108)
+    oled.rect(8, 28, 112, 8, 1)
+    oled.fill_rect(10, 30, bar_w, 4, 1)
+    # 스파크라인 영역 (테두리 프레임)
+    oled.hline(0, 38, 128, 1)
+    oled.rect(0, 40, 128, 24, 1)
+    for i in range(min(len(graph_data), 124)):
+        idx = len(graph_data) - min(len(graph_data), 124) + i
+        h = int(graph_data[idx] / 100 * 20)
+        h = max(1, min(20, h))
+        oled.vline(2 + i, 62 - h, h, 1)
     oled.show()
 
     # CSV 저장
@@ -348,12 +587,102 @@ while True:
 | 4 | `ADC(Pin(26))` | GP26(A0 포트)에서 밝기를 아날로그 값으로 읽습니다. |
 | 13 | `graph_data = []` | 최근 100개의 밝기 값을 저장하는 리스트입니다. OLED 그래프를 그리는 데 사용합니다. |
 | 33 | `graph_data.pop(0)` | 리스트가 100개를 넘으면 가장 오래된 값을 제거합니다. 슬라이딩 윈도우 방식입니다. |
-| 39-42 | 실시간 그래프 | 각 데이터 값을 세로선(`vline`)으로 그립니다. `h`는 밝기에 비례하는 높이입니다. |
+| 41 | `oled.fill_rect(0, 0, 128, 12, 1)` | 반전 헤더 바를 그립니다. 흰 배경 위에 검은 글씨로 "Light Meter"를 표시합니다. |
+| 48-50 | 프로그레스 바 | 현재 밝기를 테두리 있는 막대그래프로 표시합니다. 0~100%를 108픽셀로 매핑합니다. |
+| 52-58 | 스파크라인 영역 | 테두리 프레임 안에 각 데이터 값을 세로선(`vline`)으로 그립니다. 최근 124개를 표시합니다. |
 
 **확장 아이디어:**
 - 밝기에 따라 Pico 내장 LED의 밝기를 조절하기 (PWM)
 - 급격한 밝기 변화(예: 교실 불 켜고 끄기)를 감지하여 이벤트 기록
 - 창가 vs 복도 쪽 밝기를 비교하는 실험
+
+#### PC 실시간 대시보드
+
+Pico에서 시리얼로 출력하는 밝기 데이터를 PC에서 면적 그래프로 실시간 시각화합니다.
+
+:::caution[사전 준비]
+1. `pip install pyserial matplotlib` (Mac: `pip3`)
+2. **Thonny를 먼저 닫아주세요!**
+:::
+
+```python
+# PC 실시간 대시보드 — 자동 조명 측정기
+# 실행: python light_meter_pc.py
+
+import serial
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from collections import deque
+import time
+import re
+
+# ── 시리얼 연결 ──
+PORT = '/dev/tty.usbmodem1101'
+BAUD = 115200
+
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)
+
+# ── 데이터 버퍼 ──
+MAX_POINTS = 200
+times = deque(maxlen=MAX_POINTS)
+light_vals = deque(maxlen=MAX_POINTS)
+
+# ── 그래프 설정 ──
+plt.style.use('dark_background')
+fig, ax = plt.subplots(figsize=(10, 5))
+fig.suptitle('Light Level Monitor', fontsize=14, color='cyan')
+
+line_light, = ax.plot([], [], 'yellow', linewidth=1.5)
+fill = None
+ax.set_ylim(0, 100)
+ax.set_xlabel('Time (s)')
+ax.set_ylabel('Light Level (%)')
+ax.grid(True, alpha=0.3)
+
+# 주/야간 영역 표시
+ax.axhspan(0, 20, alpha=0.15, color='#1a1a3e', label='Dark')
+ax.axhspan(20, 60, alpha=0.10, color='#4a4a00', label='Normal')
+ax.axhspan(60, 100, alpha=0.15, color='#aaaa00', label='Bright')
+ax.legend(loc='upper left')
+
+def update(frame):
+    global fill
+    try:
+        line = ser.readline().decode('utf-8').strip()
+        if not line:
+            return
+        # 파싱: "12s | 45% [Normal]"
+        m = re.match(r'(\d+)s \| (\d+)% \[(.+)\]', line)
+        if not m:
+            return
+        t = int(m.group(1))
+        val = float(m.group(2))
+        status = m.group(3)
+
+        times.append(t)
+        light_vals.append(val)
+
+        t_list = list(times)
+        v_list = list(light_vals)
+        line_light.set_data(t_list, v_list)
+
+        # 면적 채우기 갱신
+        if fill:
+            fill.remove()
+        fill = ax.fill_between(t_list, v_list, alpha=0.3, color='yellow')
+
+        ax.set_xlim(max(0, t - 200), t + 10)
+        fig.canvas.manager.set_window_title(f'Light — {val:.0f}% [{status}]')
+    except:
+        pass
+
+ani = FuncAnimation(fig, update, interval=1000, cache_frame_data=False)
+plt.tight_layout()
+plt.show()
+```
+
+노란색 면적 그래프로 밝기 변화를 실시간으로 확인할 수 있습니다. 배경색으로 Dark/Normal/Bright 영역을 구분합니다.
 
 {/* end */}
 

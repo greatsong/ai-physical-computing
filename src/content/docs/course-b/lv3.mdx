@@ -118,6 +118,7 @@ f = open(LOG_FILE, "a")
 f.write("측정번호,경과시간(분),온도(C),습도(%),광량(%)\n")
 count = 0
 start = time.ticks_ms()
+temp_hist = []  # 온도 트렌드 (최대 40개)
 
 # ── 장기 데이터 수집 루프 ──
 while True:
@@ -126,13 +127,34 @@ while True:
     count += 1
     elapsed_min = time.ticks_diff(time.ticks_ms(), start) // 60000
 
+    # 이력 저장
+    temp_hist.append(int(temp))
+    if len(temp_hist) > 40:
+        temp_hist.pop(0)
+
     # OLED 연구 대시보드
     oled.fill(0)
-    oled.text("Plant Research", 8, 0)
-    oled.text(f"#{count} ({elapsed_min}min)", 4, 14)
-    oled.text(f"T:{temp}C H:{humi}%", 4, 28)
-    oled.text(f"Light: {light_pct}%", 4, 40)
-    oled.text(f"Next: {MEASURE_INTERVAL}s", 4, 54)
+    # 헤더 바
+    oled.fill_rect(0, 0, 128, 12, 1)
+    oled.text("Plant Lab", 28, 2, 0)
+    oled.hline(0, 13, 128, 1)
+    # 측정 정보
+    oled.text(f"#{count}", 4, 16)
+    oled.text(f"{elapsed_min}min", 80, 16)
+    # 센서 값
+    oled.text(f"T:{temp}C", 4, 28)
+    oled.text(f"L:{light_pct}%", 72, 28)
+    # 온도 트렌드 그래프
+    oled.hline(0, 40, 128, 1)
+    oled.text("Trend", 0, 42)
+    if len(temp_hist) > 1:
+        t_min = min(temp_hist)
+        t_max = max(temp_hist)
+        t_range = max(t_max - t_min, 1)
+        for i in range(len(temp_hist)):
+            h = int((temp_hist[i] - t_min) / t_range * 16)
+            x = 44 + i * 2
+            oled.vline(x, 62 - h, max(h, 1), 1)
     oled.show()
 
     # CSV 저장
@@ -219,6 +241,97 @@ plt.show()
 - 창가 평균 조도 / 안쪽 평균 조도 = 몇 배?
 - 온도 차이는 조도 차이만큼 큰가?
 
+#### PC 실시간 시리얼 대시보드
+
+위 CSV 분석과 별도로, Pico가 측정하는 동안 **실시간으로** PC 화면에서 데이터를 모니터링할 수 있습니다. CSV 내보내기 버튼도 포함되어 있습니다.
+
+:::caution[사전 준비]
+1. `pip install pyserial matplotlib` (Mac: `pip3`)
+2. **Thonny를 먼저 닫아주세요!** — Thonny가 시리얼 포트를 점유합니다.
+:::
+
+```python
+# PC 실시간 대시보드 — 식물 성장 환경 분석
+# 사용법: pip install pyserial matplotlib
+import serial
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from matplotlib.widgets import Button
+from collections import deque
+import time, csv
+
+PORT = '/dev/tty.usbmodem1101'  # 환경에 맞게 수정
+BAUD = 115200
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)
+
+MAX_POINTS = 200
+times = deque(maxlen=MAX_POINTS)
+temps = deque(maxlen=MAX_POINTS)
+humis = deque(maxlen=MAX_POINTS)
+lights = deque(maxlen=MAX_POINTS)
+
+plt.style.use('dark_background')
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7))
+fig.suptitle('Plant Growth Environment', fontsize=14, color='cyan')
+
+# CSV 내보내기 버튼
+csv_file = 'plant_pc_log.csv'
+def export_csv(event):
+    with open(csv_file, 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['time_min', 'temp', 'humi', 'light_pct'])
+        for i in range(len(times)):
+            w.writerow([f'{times[i]:.1f}', f'{temps[i]:.1f}',
+                        f'{humis[i]:.1f}', f'{lights[i]:.1f}'])
+    print(f'Saved {len(times)} rows to {csv_file}')
+ax_btn = plt.axes([0.81, 0.01, 0.15, 0.04])
+btn = Button(ax_btn, 'Export CSV', color='#333', hovercolor='#555')
+btn.on_clicked(export_csv)
+
+def update(frame):
+    try:
+        line = ser.readline().decode('utf-8').strip()
+        if not line or not line.startswith('#'): return
+        # 파싱: #1 | 0분 | T:24.5 H:55.2 L:72.3%
+        parts = line.split('|')
+        elapsed = float(parts[1].strip().replace('분', ''))
+        vals = parts[2].strip().split()
+        t = float(vals[0].split(':')[1])
+        h = float(vals[1].split(':')[1])
+        l = float(vals[2].split(':')[1].replace('%', ''))
+        times.append(elapsed)
+        temps.append(t)
+        humis.append(h)
+        lights.append(l)
+
+        ax1.clear()
+        ax1.set_title('Temperature & Humidity')
+        ax1.set_ylabel('Temperature (C)', color='#ff6b6b')
+        ax1.plot(list(times), list(temps), color='#ff6b6b', linewidth=2, label='Temp')
+        ax1.tick_params(axis='y', labelcolor='#ff6b6b')
+        ax1r = ax1.twinx()
+        ax1r.set_ylabel('Humidity (%)', color='#4ecdc4')
+        ax1r.plot(list(times), list(humis), color='#4ecdc4', linewidth=2, label='Humi')
+        ax1r.tick_params(axis='y', labelcolor='#4ecdc4')
+        ax1.set_xlabel('Time (min)')
+
+        ax2.clear()
+        ax2.set_title('Light Level')
+        ax2.fill_between(list(times), list(lights), alpha=0.3, color='#ffe66d')
+        ax2.plot(list(times), list(lights), color='#ffe66d', linewidth=2)
+        ax2.set_ylabel('Light (%)')
+        ax2.set_xlabel('Time (min)')
+        ax2.set_ylim(0, 100)
+    except: pass
+
+ani = FuncAnimation(fig, update, interval=1000, cache_frame_data=False)
+plt.tight_layout(rect=[0, 0.05, 1, 0.95])
+plt.show()
+```
+
+실행하면 온도/습도와 광량이 실시간으로 그려지며, 오른쪽 아래 "Export CSV" 버튼으로 PC에 바로 CSV를 저장할 수 있습니다.
+
 {/* end */}
 
   </TabItem>
@@ -293,6 +406,7 @@ f = open(LOG_FILE, "a")
 f.write("측정번호,경과시간(분),CO2(ppm),온도(C),상태\n")
 count = 0
 start = time.ticks_ms()
+co2_hist = []  # CO2 트렌드 (최대 40개)
 
 # ── 장기 데이터 수집 루프 ──
 while True:
@@ -301,13 +415,34 @@ while True:
     count += 1
     elapsed_min = time.ticks_diff(time.ticks_ms(), start) // 60000
 
+    # 이력 저장
+    co2_hist.append(co2)
+    if len(co2_hist) > 40:
+        co2_hist.pop(0)
+
     # OLED 연구 대시보드
     oled.fill(0)
-    oled.text("CO2 Research", 16, 0)
-    oled.text(f"#{count} ({elapsed_min}min)", 4, 14)
-    oled.text(f"CO2: {co2} ppm", 4, 28)
-    oled.text(f"Temp: {temp} C", 4, 40)
-    oled.text(f"[{status}]", 4, 54)
+    # 헤더 바
+    oled.fill_rect(0, 0, 128, 12, 1)
+    oled.text("CO2 Lab", 36, 2, 0)
+    oled.hline(0, 13, 128, 1)
+    # CO2 값 크게 표시
+    oled.text(f"{co2}ppm", 4, 16)
+    oled.text(f"T:{temp}C", 84, 16)
+    # 상태 표시 (zone)
+    zone = "+" if co2 < 600 else ("++" if co2 < 1000 else ("+++" if co2 < 1500 else "!!!!"))
+    oled.text(f"[{status}] {zone}", 4, 28)
+    # CO2 트렌드 그래프
+    oled.hline(0, 40, 128, 1)
+    oled.text("Trend", 0, 42)
+    if len(co2_hist) > 1:
+        c_min = min(co2_hist)
+        c_max = max(co2_hist)
+        c_range = max(c_max - c_min, 1)
+        for i in range(len(co2_hist)):
+            h = int((co2_hist[i] - c_min) / c_range * 16)
+            x = 44 + i * 2
+            oled.vline(x, 62 - h, max(h, 1), 1)
     oled.show()
 
     # CSV 저장
@@ -358,6 +493,88 @@ print(f"1000ppm 초과 시점: {next((t for t, c in zip(data['time'], data['co2'
 - 40분 후 CO2는 실제로 1500ppm을 넘었는가?
 - 1000ppm(주의 기준)을 넘는 시점은 몇 분째인가?
 - 환기 시작 후 CO2가 정상으로 돌아오는 데 몇 분 걸렸는가?
+
+#### PC 실시간 시리얼 대시보드
+
+CSV 분석과 별도로, Pico가 측정하는 동안 **실시간으로** CO2 농도를 PC 화면에서 모니터링할 수 있습니다. CO2 농도 구간(Good/Fair/Poor/Vent!)을 배경색으로 구분합니다.
+
+:::caution[사전 준비]
+1. `pip install pyserial matplotlib` (Mac: `pip3`)
+2. **Thonny를 먼저 닫아주세요!**
+:::
+
+```python
+# PC 실시간 대시보드 — CO2 농도와 수업 집중도
+# 사용법: pip install pyserial matplotlib
+import serial
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from collections import deque
+import time
+
+PORT = '/dev/tty.usbmodem1101'  # 환경에 맞게 수정
+BAUD = 115200
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)
+
+MAX_POINTS = 300
+times = deque(maxlen=MAX_POINTS)
+co2s = deque(maxlen=MAX_POINTS)
+temps_data = deque(maxlen=MAX_POINTS)
+
+plt.style.use('dark_background')
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 7), gridspec_kw={'height_ratios': [3, 1]})
+fig.suptitle('CO2 Concentration Monitor', fontsize=14, color='cyan')
+
+def update(frame):
+    try:
+        line = ser.readline().decode('utf-8').strip()
+        if not line or not line.startswith('#'): return
+        # 파싱: #1 | 0분 | CO2:800ppm T:24.5C [Good]
+        parts = line.split('|')
+        elapsed = float(parts[1].strip().replace('분', ''))
+        vals = parts[2].strip()
+        co2 = int(vals.split('CO2:')[1].split('ppm')[0])
+        t = float(vals.split('T:')[1].split('C')[0])
+        times.append(elapsed)
+        co2s.append(co2)
+        temps_data.append(t)
+
+        ax1.clear()
+        ax1.set_title('CO2 Concentration (ppm)', fontsize=11)
+        t_list = list(times)
+        c_list = list(co2s)
+        # 존 배경색
+        ax1.axhspan(0, 600, alpha=0.15, color='green', label='Good (<600)')
+        ax1.axhspan(600, 1000, alpha=0.15, color='yellow', label='Fair (600-1000)')
+        ax1.axhspan(1000, 1500, alpha=0.15, color='orange', label='Poor (1000-1500)')
+        ax1.axhspan(1500, 3000, alpha=0.12, color='red', label='Vent! (>1500)')
+        ax1.plot(t_list, c_list, color='white', linewidth=2)
+        ax1.fill_between(t_list, c_list, alpha=0.2, color='cyan')
+        ax1.set_ylabel('CO2 (ppm)')
+        ax1.set_ylim(300, max(1600, max(c_list) + 100) if c_list else 1600)
+        ax1.legend(fontsize=8, loc='upper left')
+        ax1.grid(True, alpha=0.3)
+        # 현재 값 표시
+        if c_list:
+            ax1.text(0.98, 0.95, f'{c_list[-1]} ppm', transform=ax1.transAxes,
+                     ha='right', va='top', fontsize=18, color='cyan',
+                     fontweight='bold')
+
+        ax2.clear()
+        ax2.set_title('Temperature', fontsize=10)
+        ax2.plot(t_list, list(temps_data), color='#ff6b6b', linewidth=1.5)
+        ax2.set_ylabel('Temp (C)')
+        ax2.set_xlabel('Time (min)')
+        ax2.grid(True, alpha=0.3)
+    except: pass
+
+ani = FuncAnimation(fig, update, interval=1000, cache_frame_data=False)
+plt.tight_layout()
+plt.show()
+```
+
+CO2 농도 구간을 초록(Good)/노랑(Fair)/주황(Poor)/빨강(Vent!) 배경으로 구분하고, 현재 ppm 값을 큰 글씨로 표시합니다. 환기 시점을 실시간으로 판단할 수 있습니다.
 
 {/* end */}
 
@@ -427,6 +644,7 @@ def classify_motion(magnitude):
 f = open("motion_log.csv", "a")
 f.write("time_ms,ax,ay,az,magnitude,motion\n")
 start = time.ticks_ms()
+mag_hist = []  # 가속도 크기 파형 (최대 60개)
 
 # ── 메인 루프 ──
 while True:
@@ -435,13 +653,32 @@ while True:
     motion = classify_motion(mag)
     elapsed = time.ticks_diff(time.ticks_ms(), start)
 
+    # 이력 저장
+    mag_hist.append(mag)
+    if len(mag_hist) > 60:
+        mag_hist.pop(0)
+
     # OLED 대시보드
     oled.fill(0)
-    oled.text("Motion Track", 16, 0)
-    oled.text(f"X:{ax:.1f} Y:{ay:.1f}", 4, 14)
-    oled.text(f"Z:{az:.1f}", 4, 26)
-    oled.text(f"G: {mag:.2f}", 4, 40)
-    oled.text(f"[{motion}]", 4, 54)
+    # 헤더 바
+    oled.fill_rect(0, 0, 128, 12, 1)
+    oled.text("Motion Lab", 24, 2, 0)
+    oled.hline(0, 13, 128, 1)
+    # 3축 값 컴팩트
+    oled.text(f"X:{ax:.1f}", 0, 16)
+    oled.text(f"Y:{ay:.1f}", 44, 16)
+    oled.text(f"Z:{az:.1f}", 88, 16)
+    # 크기 + 분류
+    oled.text(f"G:{mag:.2f}", 4, 28)
+    oled.text(f"[{motion}]", 72, 28)
+    # 실시간 파형 (60포인트, y=40~62)
+    oled.hline(0, 39, 128, 1)
+    if len(mag_hist) > 1:
+        m_max = max(max(mag_hist), 2.0)
+        for i in range(len(mag_hist)):
+            h = int(min(mag_hist[i] / m_max, 1.0) * 22)
+            x = 4 + i * 2
+            oled.vline(x, 62 - h, max(h, 1), 1)
     oled.show()
 
     # CSV 저장
@@ -495,6 +732,101 @@ plt.show()
 - 걷기의 평균 가속도 크기 vs 달리기의 평균 가속도 크기 = 몇 배?
 - 제자리 뛰기는 어떤 축(X/Y/Z)의 변화가 가장 큰가?
 - 동작별 가속도 패턴이 눈으로 구분 가능한가?
+
+#### PC 실시간 시리얼 대시보드
+
+CSV 분석과 별도로, Pico가 측정하는 동안 **실시간으로** 가속도 데이터와 동작 분류 결과를 PC 화면에서 모니터링할 수 있습니다.
+
+:::caution[사전 준비]
+1. `pip install pyserial matplotlib` (Mac: `pip3`)
+2. **Thonny를 먼저 닫아주세요!**
+:::
+
+```python
+# PC 실시간 대시보드 — 운동 강도와 가속도 패턴
+# 사용법: pip install pyserial matplotlib
+import serial
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from collections import deque
+import time
+
+PORT = '/dev/tty.usbmodem1101'  # 환경에 맞게 수정
+BAUD = 115200
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)
+
+MAX_POINTS = 200
+mag_buf = deque(maxlen=MAX_POINTS)
+idx_buf = deque(maxlen=MAX_POINTS)
+count = 0
+current_label = 'Idle'
+
+plt.style.use('dark_background')
+fig, (ax_xyz, ax_mag) = plt.subplots(2, 1, figsize=(12, 7))
+fig.suptitle('Motion Accelerometer Dashboard', fontsize=14, color='cyan')
+
+# 분류 결과 텍스트
+label_text = fig.text(0.98, 0.02, 'Idle', fontsize=20, color='lime',
+                       ha='right', va='bottom', fontweight='bold')
+
+def update(frame):
+    global count, current_label
+    try:
+        line = ser.readline().decode('utf-8').strip()
+        if not line: return
+        # 파싱: G:1.23 [Walk]
+        if not line.startswith('G:'): return
+        parts = line.split()
+        g_val = float(parts[0].split(':')[1])
+        label = parts[1].strip('[]')
+        current_label = label
+        count += 1
+        idx_buf.append(count)
+        mag_buf.append(g_val)
+
+        ax_mag.clear()
+        ax_mag.set_title('Magnitude (G)', fontsize=11)
+        x = list(idx_buf)
+        m = list(mag_buf)
+        ax_mag.plot(x, m, color='cyan', linewidth=1.5)
+        ax_mag.fill_between(x, m, alpha=0.2, color='cyan')
+        ax_mag.axhline(y=1.2, color='green', linestyle=':', alpha=0.5, label='Walk')
+        ax_mag.axhline(y=2.0, color='yellow', linestyle=':', alpha=0.5, label='Run')
+        ax_mag.axhline(y=4.0, color='red', linestyle=':', alpha=0.5, label='Jump')
+        ax_mag.set_ylabel('G-force')
+        ax_mag.set_xlabel('Sample')
+        ax_mag.legend(fontsize=8, loc='upper left')
+        ax_mag.grid(True, alpha=0.3)
+        ax_mag.set_ylim(0, max(5, max(m) + 0.5) if m else 5)
+
+        # 분류 결과 색상
+        colors = {'Idle': '#888888', 'Walk': '#44ff44', 'Run': '#ffcc00', 'Jump': '#ff4444'}
+        label_text.set_text(current_label)
+        label_text.set_color(colors.get(current_label, 'white'))
+
+        # 최근 분류 히스토그램
+        recent = list(mag_buf)[-50:]
+        ax_xyz.clear()
+        ax_xyz.set_title('Recent Motion Classification (last 50)', fontsize=11)
+        classes = {'Idle': 0, 'Walk': 0, 'Run': 0, 'Jump': 0}
+        for v in recent:
+            if v < 1.2: classes['Idle'] += 1
+            elif v < 2.0: classes['Walk'] += 1
+            elif v < 4.0: classes['Run'] += 1
+            else: classes['Jump'] += 1
+        bars = ax_xyz.bar(classes.keys(), classes.values(),
+                          color=['#888888', '#44ff44', '#ffcc00', '#ff4444'])
+        ax_xyz.set_ylabel('Count')
+        ax_xyz.grid(True, axis='y', alpha=0.3)
+    except: pass
+
+ani = FuncAnimation(fig, update, interval=50, cache_frame_data=False)
+plt.tight_layout()
+plt.show()
+```
+
+상단에 최근 50개 동작의 분류 히스토그램, 하단에 가속도 크기(G)의 실시간 파형이 표시됩니다. 임계선(Walk/Run/Jump)이 점선으로 표시되어 분류 기준을 직관적으로 확인할 수 있습니다.
 
 {/* end */}
 
