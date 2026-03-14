@@ -112,7 +112,7 @@ import ssd1306
 import time
 
 # I2C 설정 (OLED + DHT20 공유)
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 time.sleep(0.1)
 
 # OLED 디스플레이 초기화

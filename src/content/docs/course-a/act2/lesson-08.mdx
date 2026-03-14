@@ -41,7 +41,7 @@ import VirtualWiring from '../../../../components/grove/VirtualWiring';
 | 초음파 센서 | D16 | Trig=GP16, Echo=GP17 |
 | 부저 | D18 | GP18 |
 | LED Bar | D20 | Data=GP20, Clock=GP21 |
-| OLED | I2C | SDA=GP8, SCL=GP9 |
+| OLED | I2C | SDA=GP6, SCL=GP7 |
 
 :::tip[여러 포트를 동시에 사용]
 이번 차시에서는 4개의 장치를 동시에 사용합니다. 디지털 포트(D16, D18, D20)는 각각 독립적으로 동작하므로, 연결만 정확하면 동시 사용이 가능합니다.
@@ -57,7 +57,7 @@ import VirtualWiring from '../../../../components/grove/VirtualWiring';
     { port: 'D16', sensorName: '초음파' },
     { port: 'D18', sensorName: '부저' },
     { port: 'D20', sensorName: 'LED Bar' },
-    { port: 'I2C0', sensorName: 'OLED' },
+    { port: 'I2C1', sensorName: 'OLED' },
   ]}
 />
 
@@ -72,7 +72,7 @@ import VirtualWiring from '../../../../components/grove/VirtualWiring';
     { id: 'ultrasonic', name: '초음파 센서', correctPort: 'D16', portType: '디지털', hint: '초음파 센서는 D16 디지털 포트에 연결합니다' },
     { id: 'buzzer', name: '부저', correctPort: 'D18', portType: '디지털', hint: '부저는 D18 디지털 포트에 연결합니다' },
     { id: 'ledbar', name: 'LED Bar', correctPort: 'D20', portType: '디지털', hint: 'LED Bar는 D20 디지털 포트에 연결합니다' },
-    { id: 'oled', name: 'OLED 디스플레이', correctPort: 'I2C0', portType: 'I2C', hint: 'OLED는 I2C 포트에 연결합니다' },
+    { id: 'oled', name: 'OLED 디스플레이', correctPort: 'I2C1', portType: 'I2C', hint: 'OLED는 I2C 포트에 연결합니다' },
   ]}
 />
 
@@ -147,7 +147,7 @@ Pico 2 WH에 다음 장치를 연결했어:
 - 초음파 센서: D16 포트 (Trig=GP16, Echo=GP17)
 - 부저: D18 포트 (GP18)
 - LED Bar: D20 포트 (Data=GP20, Clock=GP21)
-- OLED SSD1306: I2C0 (SDA=GP8, SCL=GP9)
+- OLED SSD1306: I2C1 (SDA=GP6, SCL=GP7)
 
 거리 기반 경보 시스템을 만들어줘. MicroPython으로.
 
@@ -188,7 +188,7 @@ led_data = Pin(20, Pin.OUT)
 led_clock = Pin(21, Pin.OUT)
 
 # OLED
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 oled = ssd1306.SSD1306_I2C(128, 64, i2c, addr=0x3C)
 
 def measure_distance():
@@ -330,7 +330,7 @@ echo = Pin(17, Pin.IN)
 buzzer = PWM(Pin(18))
 buzzer.duty_u16(0)
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 oled = ssd1306.SSD1306_I2C(128, 64, i2c, addr=0x3C)
 
 def measure_distance():

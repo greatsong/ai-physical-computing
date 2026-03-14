@@ -36,12 +36,12 @@ import VirtualWiring from '../../../../components/grove/VirtualWiring';
 
 ### 연결 방법
 
-- **DHT20** → I2C0 포트
-- **OLED** → I2C0 포트 (DHT20과 같은 포트에 Y-스플리터로 연결하거나, I2C1 포트에 연결)
+- **DHT20** → I2C1 포트
+- **OLED** → I2C1 포트 (DHT20과 같은 포트에 Y-스플리터로 연결)
 - **빛 센서** → A0 포트
 
 :::tip[I2C 버스 공유]
-DHT20(주소 0x38)과 OLED(주소 0x3C)는 둘 다 I2C 통신을 사용하지만 주소가 다릅니다. 코드에서 `I2C(0)`으로 같은 버스를 공유하므로, **두 장치를 같은 I2C0 버스에 연결**해야 합니다. Grove Shield의 I2C0 포트가 1개뿐이라면, I2C Y-스플리터 케이블을 사용하거나 I2C1 포트에 OLED를 연결한 뒤 코드의 I2C 번호를 수정하세요.
+DHT20(주소 0x38)과 OLED(주소 0x3C)는 둘 다 I2C 통신을 사용하지만 주소가 다릅니다. 코드에서 `I2C(1)`으로 같은 버스를 공유하므로, **두 장치를 같은 I2C1 버스에 연결**해야 합니다. Grove Shield의 I2C1 포트가 1개뿐이라면, I2C Y-스플리터 케이블을 사용하세요.
 :::
 
 ### 보드 포트 맵
@@ -51,18 +51,18 @@ DHT20(주소 0x38)과 OLED(주소 0x3C)는 둘 다 I2C 통신을 사용하지만
 <GroveShieldMap
   client:load
   connectedSensors={[
-    { port: 'I2C0', sensorName: 'DHT20+OLED' },
+    { port: 'I2C1', sensorName: 'DHT20+OLED' },
     { port: 'A0', sensorName: '빛 센서' },
   ]}
 />
 
-:::note[같은 I2C0에 2개 연결하기]
-코드에서 `I2C(0)`으로 DHT20과 OLED를 모두 제어합니다. 물리적으로 같은 I2C0 포트에 연결해야 합니다. I2C Y-스플리터 케이블이 없다면, OLED를 I2C1에 연결하고 코드에서 `I2C(1, sda=Pin(6), scl=Pin(7))`로 별도 초기화할 수도 있습니다.
+:::note[같은 I2C1에 2개 연결하기]
+코드에서 `I2C(1)`으로 DHT20과 OLED를 모두 제어합니다. 물리적으로 같은 I2C1 포트에 연결해야 합니다. I2C Y-스플리터 케이블을 사용하면 하나의 포트에 2개 장치를 연결할 수 있습니다.
 :::
 
 ### 연결 연습
 
-빛 센서를 올바른 포트에 연결해보세요. (DHT20과 OLED는 같은 I2C0 버스를 공유합니다.)
+빛 센서를 올바른 포트에 연결해보세요. (DHT20과 OLED는 같은 I2C1 버스를 공유합니다.)
 
 <VirtualWiring
   client:load
@@ -80,7 +80,7 @@ DHT20(주소 0x38)과 OLED(주소 0x3C)는 둘 다 I2C 통신을 사용하지만
 
 ### Step 1. 세 장치 연결하기 (5분)
 
-1. DHT20을 I2C0 포트에, OLED를 I2C1 포트에 연결합니다.
+1. DHT20과 OLED를 I2C1 포트에 연결합니다 (Y-스플리터 사용).
 2. 빛 센서를 A0 포트에 연결합니다.
 3. USB-C로 컴퓨터와 연결합니다.
 
@@ -88,7 +88,7 @@ DHT20(주소 0x38)과 OLED(주소 0x3C)는 둘 다 I2C 통신을 사용하지만
 Thonny Shell에서 I2C 장치를 확인할 수 있습니다:
 ```python
 from machine import I2C, Pin
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 print([hex(a) for a in i2c.scan()])
 # ['0x38', '0x3c'] → DHT20과 OLED가 보입니다
 ```
@@ -133,7 +133,7 @@ from ssd1306 import SSD1306_I2C
 import time
 
 # I2C 설정
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 
 # OLED 디스플레이 초기화 (128x64)
 oled = SSD1306_I2C(128, 64, i2c)
@@ -191,7 +191,7 @@ from machine import I2C, Pin, ADC
 from ssd1306 import SSD1306_I2C
 import time
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 oled = SSD1306_I2C(128, 64, i2c)
 sensor_addr = 0x38
 light = ADC(Pin(26))

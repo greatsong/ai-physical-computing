@@ -34,8 +34,8 @@ const PORTS: PortInfo[] = [
   { name: 'D18', type: '디지털', gpio: 'GP18/GP19', color: '#3b82f6', sensorExamples: '초음파 센서, 릴레이' },
   { name: 'D20', type: '디지털', gpio: 'GP20/GP21', color: '#3b82f6', sensorExamples: '부저, 모션 센서' },
   // I2C
-  { name: 'I2C0', type: 'I2C', gpio: 'GP8/GP9', color: '#eab308', sensorExamples: 'OLED 디스플레이, BME280' },
-  { name: 'I2C1', type: 'I2C', gpio: 'GP6/GP7', color: '#eab308', sensorExamples: '가속도 센서, 컬러 센서' },
+  { name: 'I2C0', type: 'I2C', gpio: 'GP8/GP9', color: '#eab308', sensorExamples: '가속도 센서, 컬러 센서' },
+  { name: 'I2C1', type: 'I2C', gpio: 'GP6/GP7', color: '#eab308', sensorExamples: 'OLED 디스플레이, BME280' },
   // UART
   { name: 'UART0', type: 'UART', gpio: 'GP0/GP1', color: '#a855f7', sensorExamples: 'GPS 모듈, 블루투스 모듈' },
   { name: 'UART1', type: 'UART', gpio: 'GP4/GP5', color: '#a855f7', sensorExamples: 'CO2 센서, 지문 센서' },

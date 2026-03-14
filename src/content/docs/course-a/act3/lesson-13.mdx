@@ -129,7 +129,7 @@ from machine import I2C, Pin
 import time
 
 # I2C 설정
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 time.sleep(0.1)
 
 # ADXL345 가속도 센서 설정

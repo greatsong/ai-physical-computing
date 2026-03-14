@@ -35,7 +35,7 @@ import VirtualWiring from '../../../../components/grove/VirtualWiring';
 ### 연결 방법
 
 - **심박 센서**: Grove 케이블로 Shield의 **A0 포트**(아날로그, GP26)에 연결
-- **OLED**: Grove 케이블로 Shield의 **I2C 포트**(SDA=GP8, SCL=GP9)에 연결
+- **OLED**: Grove 케이블로 Shield의 **I2C 포트**(SDA=GP6, SCL=GP7)에 연결
 
 :::tip[센서 사용법]
 센서의 감지면(LED가 있는 쪽)에 **검지 손가락 끝**을 가볍게 올려놓으세요. 너무 세게 누르면 혈류가 막혀 신호가 사라집니다.
@@ -55,7 +55,7 @@ import VirtualWiring from '../../../../components/grove/VirtualWiring';
   client:load
   connectedSensors={[
     { port: 'A0', sensorName: '심박 센서' },
-    { port: 'I2C0', sensorName: 'OLED' },
+    { port: 'I2C1', sensorName: 'OLED' },
   ]}
 />
 
@@ -66,7 +66,7 @@ import VirtualWiring from '../../../../components/grove/VirtualWiring';
   title="7차시: 심박 센서 + OLED 연결"
   sensors={[
     { id: 'pulse', name: '심박 센서', correctPort: 'A0', portType: '아날로그', hint: '심박 센서는 아날로그 센서입니다. A0 포트에 연결하세요' },
-    { id: 'oled', name: 'OLED 디스플레이', correctPort: 'I2C0', portType: 'I2C', hint: 'OLED는 I2C 장치입니다' },
+    { id: 'oled', name: 'OLED 디스플레이', correctPort: 'I2C1', portType: 'I2C', hint: 'OLED는 I2C 장치입니다' },
   ]}
 />
 
@@ -135,7 +135,7 @@ import VirtualWiring from '../../../../components/grove/VirtualWiring';
 
 ```
 Pico 2 WH에 Grove Pulse Sensor(심박 센서)를 A0 포트(GP26)에,
-OLED SSD1306을 I2C0(SDA=GP8, SCL=GP9)에 연결했어.
+OLED SSD1306을 I2C1(SDA=GP6, SCL=GP7)에 연결했어.
 
 다음 기능을 하는 MicroPython 코드를 만들어줘:
 
@@ -172,7 +172,7 @@ import time
 pulse = ADC(Pin(26))
 
 # OLED 설정
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 oled = ssd1306.SSD1306_I2C(128, 64, i2c, addr=0x3C)
 
 # 피크 감지 설정
@@ -282,7 +282,7 @@ import ssd1306
 import time
 
 pulse = ADC(Pin(26))
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 oled = ssd1306.SSD1306_I2C(128, 64, i2c, addr=0x3C)
 
 THRESHOLD = 45000

@@ -39,11 +39,11 @@ export const sensors: Sensor[] = [
       '옷장 습도 알림기 만들기',
       '식물 생장 환경 자동 기록기',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from dht20 import DHT20
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 sensor = DHT20(i2c)
 temp = sensor.temperature
 humi = sensor.humidity
@@ -64,11 +64,11 @@ print(f"온도: {temp}°C, 습도: {humi}%")`,
       '교실별 공기질 비교 실험',
       '식물의 광합성과 CO2 변화 관찰',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from scd4x import SCD4X
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 sensor = SCD4X(i2c)
 sensor.start_periodic_measurement()
 co2 = sensor.co2
@@ -88,11 +88,11 @@ print(f"CO2: {co2} ppm")`,
       '날씨 변화 예측 장치 만들기',
       '엘리베이터 층수 추적기',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from bmp280 import BMP280
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 sensor = BMP280(i2c)
 pressure = sensor.pressure
 temp = sensor.temperature
@@ -112,11 +112,11 @@ print(f"기압: {pressure}hPa, 온도: {temp}°C")`,
       '요리할 때 주방 미세먼지 변화 관찰',
       '실내외 공기질 비교 프로젝트',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from hm3301 import HM3301
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 sensor = HM3301(i2c)
 data = sensor.read()
 pm25 = data['PM2.5']
@@ -206,11 +206,11 @@ print(f"수질 TDS: {tds:.0f} ppm")`,
       '주방에서 발생하는 가스 종류 분석',
       '도로변 vs 공원 공기질 비교 연구',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from multichannel_gas import MultichannelGas
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 gas = MultichannelGas(i2c)
 no2 = gas.measure_NO2()
 co = gas.measure_CO()
@@ -326,11 +326,11 @@ print(f"밝기: {brightness:.1f}%")`,
       '식물 광합성에 필요한 조도 실험',
       '독서에 적합한 조도 조건 찾기',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from tsl2591 import TSL2591
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 sensor = TSL2591(i2c)
 lux = sensor.lux
 print(f"조도: {lux:.1f} lux")`,
@@ -348,11 +348,11 @@ print(f"조도: {lux:.1f} lux")`,
       '과일 익음 정도 판별기',
       '색깔 맞추기 게임 만들기',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from tcs34725 import TCS34725
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 sensor = TCS34725(i2c)
 r, g, b, c = sensor.read()
 print(f"R:{r} G:{g} B:{b} 밝기:{c}")`,
@@ -419,11 +419,11 @@ print(f"거리: {distance:.1f} cm")`,
       '물체 높이 자동 측정 장치',
       '로봇 장애물 회피 시스템',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from vl53l0x import VL53L0X
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 sensor = VL53L0X(i2c)
 distance = sensor.read()
 print(f"거리: {distance} mm")`,
@@ -465,11 +465,11 @@ while True:
       '기울기 감지 미로 게임',
       '교량 진동 모니터링 시뮬레이션',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from adxl345 import ADXL345
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 sensor = ADXL345(i2c)
 x, y, z = sensor.read()
 print(f"X:{x:.2f} Y:{y:.2f} Z:{z:.2f} g")`,
@@ -488,11 +488,11 @@ print(f"X:{x:.2f} Y:{y:.2f} Z:{z:.2f} g")`,
       '모션 인식 제스처 컨트롤러',
       '흔들림 감지 안정화 플랫폼',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from mpu6050 import MPU6050
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 imu = MPU6050(i2c)
 ax, ay, az = imu.accel
 gx, gy, gz = imu.gyro
@@ -586,11 +586,11 @@ print(f"피부 전도도: {conductance:.1f}%")`,
       '음식 온도 안전 체크기',
       '열화상 간이 스캐너 만들기',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from mlx90614 import MLX90614
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 sensor = MLX90614(i2c)
 obj_temp = sensor.object_temp
 amb_temp = sensor.ambient_temp
@@ -721,11 +721,11 @@ print("LED 바: 7/10 표시")`,
       '미니 디지털 시계',
       '가위바위보 게임 화면',
     ],
-    pinInfo: 'I2C (GP8=SDA, GP9=SCL)',
+    pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
 from ssd1306 import SSD1306_I2C
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 oled = SSD1306_I2C(128, 64, i2c)
 oled.fill(0)
 oled.text("Hello!", 0, 0)

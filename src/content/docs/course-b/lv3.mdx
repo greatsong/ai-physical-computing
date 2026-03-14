@@ -114,8 +114,11 @@ def read_dht20():
     return round(temp, 1), round(humi, 1)
 
 # ── CSV 파일 준비 ──
+import os
+new_file = LOG_FILE not in os.listdir()
 f = open(LOG_FILE, "a")
-f.write("측정번호,경과시간(분),온도(C),습도(%),광량(%)\n")
+if new_file:
+    f.write("측정번호,경과시간(분),온도(C),습도(%),광량(%)\n")
 count = 0
 start = time.ticks_ms()
 temp_hist = []  # 온도 트렌드 (최대 40개)
@@ -402,8 +405,11 @@ def co2_status(co2):
         return "Vent!"
 
 # ── CSV 파일 준비 ──
+import os
+new_file = LOG_FILE not in os.listdir()
 f = open(LOG_FILE, "a")
-f.write("측정번호,경과시간(분),CO2(ppm),온도(C),상태\n")
+if new_file:
+    f.write("측정번호,경과시간(분),CO2(ppm),온도(C),상태\n")
 count = 0
 start = time.ticks_ms()
 co2_hist = []  # CO2 트렌드 (최대 40개)
@@ -641,8 +647,11 @@ def classify_motion(magnitude):
         return "Jump"
 
 # ── CSV 파일 준비 ──
+import os
+new_file = "motion_log.csv" not in os.listdir()
 f = open("motion_log.csv", "a")
-f.write("time_ms,ax,ay,az,magnitude,motion\n")
+if new_file:
+    f.write("time_ms,ax,ay,az,magnitude,motion\n")
 start = time.ticks_ms()
 mag_hist = []  # 가속도 크기 파형 (최대 60개)
 
@@ -763,7 +772,7 @@ count = 0
 current_label = 'Idle'
 
 plt.style.use('dark_background')
-fig, (ax_xyz, ax_mag) = plt.subplots(2, 1, figsize=(12, 7))
+fig, (ax_hist, ax_mag) = plt.subplots(2, 1, figsize=(12, 7))
 fig.suptitle('Motion Accelerometer Dashboard', fontsize=14, color='cyan')
 
 # 분류 결과 텍스트
@@ -807,18 +816,18 @@ def update(frame):
 
         # 최근 분류 히스토그램
         recent = list(mag_buf)[-50:]
-        ax_xyz.clear()
-        ax_xyz.set_title('Recent Motion Classification (last 50)', fontsize=11)
+        ax_hist.clear()
+        ax_hist.set_title('Recent Motion Classification (last 50)', fontsize=11)
         classes = {'Idle': 0, 'Walk': 0, 'Run': 0, 'Jump': 0}
         for v in recent:
             if v < 1.2: classes['Idle'] += 1
             elif v < 2.0: classes['Walk'] += 1
             elif v < 4.0: classes['Run'] += 1
             else: classes['Jump'] += 1
-        bars = ax_xyz.bar(classes.keys(), classes.values(),
+        bars = ax_hist.bar(classes.keys(), classes.values(),
                           color=['#888888', '#44ff44', '#ffcc00', '#ff4444'])
-        ax_xyz.set_ylabel('Count')
-        ax_xyz.grid(True, axis='y', alpha=0.3)
+        ax_hist.set_ylabel('Count')
+        ax_hist.grid(True, axis='y', alpha=0.3)
     except: pass
 
 ani = FuncAnimation(fig, update, interval=50, cache_frame_data=False)

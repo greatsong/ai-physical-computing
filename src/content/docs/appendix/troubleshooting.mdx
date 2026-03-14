@@ -56,7 +56,7 @@ description: "자주 발생하는 에러와 해결 방법 모음"
 1. 먼저 `i2c.scan()`으로 장치가 인식되는지 확인하세요:
    ```python
    from machine import I2C, Pin
-   i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+   i2c = I2C(1, sda=Pin(6), scl=Pin(7))
    print(i2c.scan())
    ```
 2. 빈 리스트 `[]`가 나오면 하드웨어 연결 문제예요:

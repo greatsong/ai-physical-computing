@@ -80,7 +80,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 :::note[핀 배치]
 - DHT20, SCD41, OLED: I2C1 (SDA=GP6, SCL=GP7) — 주소가 모두 다르므로 공존 가능
-- 먼지 센서: GP28 (A0=GP26과 A2=GP27은 다른 센서용으로 예약)
+- 먼지 센서: GP28 (ADC2) — A0(GP26)과 A1(GP27)은 다른 센서용으로 예약
 :::
 
 #### 전체 코드
@@ -93,7 +93,7 @@ import time
 i2c = I2C(1, sda=Pin(6), scl=Pin(7), freq=100000)
 dht_addr = 0x38
 scd_addr = 0x62
-dust = ADC(Pin(28))  # 미세먼지 센서 (ADC — GP28, A0/A2는 다른 센서용)
+dust = ADC(Pin(28))  # 미세먼지 센서 (ADC2 — GP28)
 time.sleep(0.1)
 
 from ssd1306 import SSD1306_I2C
@@ -120,14 +120,18 @@ time.sleep(5)
 
 def read_dust():
     raw = dust.read_u16()
-    # 간이 미세먼지 농도 변환 (ug/m3 근사)
-    return round(raw / 65535 * 500, 0)
+    voltage = raw / 65535 * 3.3
+    dust_ug = max(0, (voltage - 0.6) * 170)  # GP2Y 센서 근사식
+    return round(dust_ug, 0)
 
 def air_quality_index(co2, dust_ug, temp, humi):
     score = 100
-    if co2 > 1000: score -= 30
+    if co2 > 2000: score -= 50
+    elif co2 > 1500: score -= 40
+    elif co2 > 1000: score -= 30
     elif co2 > 800: score -= 15
-    if dust_ug > 75: score -= 30
+    if dust_ug > 150: score -= 40
+    elif dust_ug > 75: score -= 30
     elif dust_ug > 35: score -= 15
     if temp < 18 or temp > 28: score -= 10
     if humi < 30 or humi > 70: score -= 10
@@ -254,6 +258,7 @@ count = 0
 plt.style.use('dark_background')
 fig, ((ax_co2, ax_dust), (ax_th, ax_aqi)) = plt.subplots(2, 2, figsize=(14, 8))
 fig.suptitle('Air Quality Monitoring Station', fontsize=14, color='cyan')
+ax_th_r = ax_th.twinx()
 
 def update(frame):
     global count
@@ -299,9 +304,9 @@ def update(frame):
 
         # Temp/Humi 차트
         ax_th.clear()
+        ax_th_r.clear()
         ax_th.set_title('Temp & Humidity', color='#4ecdc4')
         ax_th.plot(x, list(temps_d), color='#ff6b6b', linewidth=1.5, label='Temp(C)')
-        ax_th_r = ax_th.twinx()
         ax_th_r.plot(x, list(humis_d), color='#4ecdc4', linewidth=1.5, label='Humi(%)')
         ax_th.set_ylabel('Temp', color='#ff6b6b')
         ax_th_r.set_ylabel('Humi', color='#4ecdc4')
@@ -434,7 +439,7 @@ while True:
     oled.text("EnergySaver", 20, 2, 0)
     # 상태 아이콘 행
     oled.text(f"Person:{'Y' if occupied else 'N'}", 4, 14)
-    oled.text(f"Relay:{'ON' if relay_on else'OFF'}", 4, 24)
+    oled.text(f"Relay:{'ON' if relay_on else 'OFF'}", 4, 24)
     # 조도 레벨 바
     oled.text(f"Light:{light_pct:.0f}%", 4, 36)
     l_w = int(min(light_pct, 100) / 100 * 56)
@@ -688,10 +693,10 @@ def predict_mode():
         oled.hline(0, 13, 128, 1)
         # 크기 게이지 (수평 바)
         oled.text(f"G:{mag:.2f}", 4, 16)
-        gauge_w = min(int(mag / 5.0 * 60), 60)
+        gauge_w = min(int(mag / 5.0 * 54), 54)
         oled.rect(68, 16, 56, 8, 1)
         # 게이지 표시선
-        oled.vline(68 + int(1.2/5*56), 16, 8, 1)
+        oled.vline(68 + int(1.1/5*56), 16, 8, 1)
         oled.vline(68 + int(2.0/5*56), 16, 8, 1)
         oled.vline(68 + int(4.0/5*56), 16, 8, 1)
         oled.fill_rect(69, 17, gauge_w, 6, 1)
@@ -740,12 +745,15 @@ LABEL = "jump"
 
 수집이 끝나면 4개의 CSV 파일(`ml_idle.csv`, `ml_walk.csv`, `ml_shake.csv`, `ml_jump.csv`)이 생성됩니다.
 
-#### Teachable Machine 활용
+#### ML 분류 방법
 
-1. [Teachable Machine](https://teachablemachine.withgoogle.com/) 접속
-2. "Pose Project" 대신 데이터를 직접 활용
-3. 각 클래스에 CSV 데이터의 패턴을 학습
-4. 분류 규칙을 코드에 반영
+:::note[ML 분류 방법]
+이 프로젝트는 **규칙 기반 분류**를 사용합니다 — 가속도 크기의 임계값으로 동작을 구분해요.
+더 정교한 머신러닝을 시도하고 싶다면:
+- [Google Colab](https://colab.research.google.com/)에서 scikit-learn의 KNN 분류기를 사용해보세요
+- 수집한 CSV 데이터를 업로드하고 `sklearn.neighbors.KNeighborsClassifier`로 학습할 수 있어요
+- Teachable Machine은 이미지/소리/포즈 인식에 특화되어 있어, CSV 센서 데이터에는 적합하지 않습니다
+:::
 
 **확장 아이디어:**
 - 실시간 분류 결과를 PC 대시보드에 파이 차트로 표시

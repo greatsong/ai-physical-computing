@@ -111,8 +111,14 @@ def get_status(temp):
         return "Good"
 
 # ── CSV 파일 준비 ──
+import os
+try:
+    size = os.stat("temp_log.csv")[6]
+except:
+    size = 0
 f = open("temp_log.csv", "a")
-f.write("time_s,temp,humi\n")
+if size == 0:
+    f.write("time_s,temp,humi\n")
 start = time.ticks_ms()
 
 # 온도 이력 (스파크라인용, 최대 50개)
@@ -139,7 +145,7 @@ while True:
     oled.text(f"{temp}", 4, 16)
     oled.text("o", 4 + len(str(temp)) * 8, 14)
     oled.text("C", 4 + len(str(temp)) * 8 + 8, 16)
-    oled.text(f"H:{humi}%", 76, 16)
+    oled.text(f"H:{humi:.0f}%", 72, 16)
     oled.text(f"[{status}]", 76, 28)
     # 스파크라인 영역
     oled.hline(0, 44, 128, 1)
@@ -149,7 +155,7 @@ while True:
     for i in range(len(temp_history)):
         h = int((temp_history[i] - 10) / 30 * 14)
         h = max(1, min(14, h))
-        oled.vline(2 + i, 62 - h, h, 1)
+        oled.vline(2 + i, 62 - h, h, 0)
     oled.show()
 
     # CSV 저장
@@ -328,8 +334,14 @@ def get_noise_level(value):
         return pct, "V.Loud", 7
 
 # ── CSV 파일 준비 ──
+import os
+try:
+    size = os.stat("noise_log.csv")[6]
+except:
+    size = 0
 f = open("noise_log.csv", "a")
-f.write("time_s,noise_pct,level\n")
+if size == 0:
+    f.write("time_s,noise_pct,level\n")
 start = time.ticks_ms()
 
 # ── 메인 루프 ──
@@ -534,8 +546,14 @@ def get_brightness(value):
         return pct, "Bright"
 
 # ── CSV 파일 준비 ──
+import os
+try:
+    size = os.stat("light_log.csv")[6]
+except:
+    size = 0
 f = open("light_log.csv", "a")
-f.write("time_s,light_pct,status\n")
+if size == 0:
+    f.write("time_s,light_pct,status\n")
 start = time.ticks_ms()
 
 # ── 메인 루프 ──
@@ -557,7 +575,7 @@ while True:
     oled.hline(0, 13, 128, 1)
     # 현재 값 + 상태
     oled.text(f"{pct:.0f}%", 4, 16)
-    oled.text(f"[{status}]", 76, 16)
+    oled.text(f"[{status}]", 64, 16)
     # 막대그래프
     bar_w = int(min(pct, 100) / 100 * 108)
     oled.rect(8, 28, 112, 8, 1)
