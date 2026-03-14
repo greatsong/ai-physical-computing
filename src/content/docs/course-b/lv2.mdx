@@ -529,6 +529,138 @@ MicroPython 코드를 만들어줘.
 
 ---
 
+## 한 단계 더: Google Sheets 연동
+
+지금까지 CSV 파일로 데이터를 저장했습니다. CSV는 Pico 내부에만 저장되기 때문에, USB를 연결해야 파일을 꺼낼 수 있었죠. 하지만 **Google Sheets로 데이터를 전송**하면, 교실 밖 어디서든 실시간으로 데이터를 확인할 수 있습니다.
+
+:::tip[이 섹션은 선택 사항입니다]
+Google Sheets 연동은 필수가 아닙니다. 하지만 교실 밖에서 전시하거나, 장기간 데이터를 수집하는 프로젝트에서는 매우 유용합니다. **Pico 2 WH**의 WiFi 기능을 활용합니다.
+:::
+
+### 원리
+
+```
+Pico 2 WH → WiFi로 인터넷 연결 → Google Apps Script(웹훅)에 POST → 스프레드시트에 자동 기록
+```
+
+Pico가 센서 데이터를 JSON 형태로 만들어서, Google이 제공하는 웹 주소(URL)로 보냅니다. Google Apps Script가 이 데이터를 받아서 스프레드시트에 한 줄씩 추가합니다.
+
+### Step 1: Google 스프레드시트 + Apps Script 설정
+
+1. [Google Sheets](https://sheets.google.com)에서 **새 스프레드시트**를 만듭니다.
+2. 메뉴에서 **확장 프로그램 → Apps Script**를 클릭합니다.
+3. 기본 코드를 모두 지우고, 아래 코드를 붙여넣습니다:
+
+```javascript
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  var row = [new Date()];
+  var keys = Object.keys(data);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["timestamp", ...keys]);
+  }
+  keys.forEach(function(key) { row.push(data[key]); });
+  sheet.appendRow(row);
+  return ContentService.createTextOutput(JSON.stringify({status: "ok"}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+```
+
+4. **배포 → 새 배포**를 클릭합니다.
+5. 유형을 **웹 앱**으로 선택하고, "액세스 권한이 있는 사용자"를 **모든 사용자**로 설정합니다.
+6. **배포**를 누르면 **웹 앱 URL**이 생성됩니다. 이 URL을 복사해 두세요.
+
+:::caution[URL을 안전하게 보관하세요]
+배포된 URL을 알면 누구든 스프레드시트에 데이터를 쓸 수 있습니다. 공개 저장소에 올리거나 다른 사람에게 공유하지 마세요.
+:::
+
+### Step 2: Pico 코드에 WiFi + 전송 기능 추가
+
+기존 프로젝트 코드의 **맨 위**에 WiFi 연결 코드를 추가하고, 메인 루프 안에서 데이터를 전송합니다.
+
+```python
+import network
+import urequests
+import time
+
+# ── WiFi 연결 ──
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+wlan.connect("WiFi이름", "WiFi비밀번호")
+
+print("WiFi 연결 중...", end="")
+timeout = 10
+while not wlan.isconnected() and timeout > 0:
+    print(".", end="")
+    time.sleep(1)
+    timeout -= 1
+
+if wlan.isconnected():
+    print("\nWiFi 연결 완료!", wlan.ifconfig()[0])
+else:
+    print("\nWiFi 연결 실패 — 오프라인 모드로 작동합니다")
+
+# ── Google Sheets 전송 설정 ──
+SHEET_URL = "https://script.google.com/macros/s/여기에_배포_URL을_붙여넣으세요/exec"
+
+def send_to_sheets(data_dict):
+    """센서 데이터를 Google Sheets로 전송합니다."""
+    if not wlan.isconnected():
+        return False
+    try:
+        res = urequests.post(
+            SHEET_URL,
+            json=data_dict,
+            headers={"Content-Type": "application/json"}
+        )
+        res.close()
+        return True
+    except Exception as e:
+        print("전송 실패:", e)
+        return False
+```
+
+### Step 3: 메인 루프에서 전송하기
+
+기존 메인 루프의 `print()` 줄 근처에 한 줄만 추가하면 됩니다.
+
+```python
+# 메인 루프 안에서 (기존 코드 유지)
+# ... 센서 읽기, OLED 표시, CSV 저장 등 ...
+
+# Google Sheets 전송 (추가)
+send_to_sheets({
+    "temp": temp,
+    "humi": humi,
+    "light": light_pct,
+    "noise": noise_pct,
+    "score": score
+})
+
+time.sleep(5)  # 너무 자주 보내지 않도록 간격 조절
+```
+
+:::note[전송 간격 주의]
+Google Apps Script는 무료 계정 기준 하루 실행 횟수에 제한이 있습니다. **5초 이상 간격**으로 전송하면 수업 시간 동안 충분히 사용할 수 있습니다.
+:::
+
+### 결과 확인
+
+전송이 성공하면, Google 스프레드시트에 이런 식으로 데이터가 쌓입니다:
+
+```
+| timestamp           | temp | humi | light | noise | score |
+|---------------------|------|------|-------|-------|-------|
+| 2026-03-14 09:30:01 | 24.2 | 55.3 | 62    | 25    | 84    |
+| 2026-03-14 09:30:06 | 24.3 | 55.1 | 61    | 28    | 82    |
+| ...                 | ...  | ...  | ...   | ...   | ...   |
+```
+
+Google Sheets의 **차트 기능**을 사용하면 시간에 따른 변화를 그래프로 바로 볼 수 있어요!
+
+---
+
 ## 다음 레벨로
 
 :::tip[Lv.2를 마쳤다면]
