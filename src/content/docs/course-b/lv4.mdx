@@ -176,6 +176,34 @@ while True:
 
 #### PC 실시간 대시보드 (Serial 수신)
 
+:::caution[필수 설치: pyserial]
+PC 대시보드 코드는 `serial` 라이브러리가 필요합니다.
+터미널에서 아래 명령어를 실행하세요:
+
+```
+pip install pyserial matplotlib
+```
+
+`pip install serial`이 아니라 `pip install pyserial`입니다! 이름이 달라요.
+Mac에서는: `pip3 install pyserial matplotlib`
+:::
+
+:::tip[시리얼 포트 이름 찾기]
+PC 대시보드가 Pico와 통신하려면 시리얼 포트 이름을 알아야 해요.
+
+**Windows**:
+- 장치 관리자 열기 (시작 → "장치 관리자" 검색)
+- "포트(COM & LPT)" 항목 펼치기
+- "USB Serial Device (COM3)" 같은 이름 찾기 → `COM3` 부분을 코드에 입력
+
+**Mac**:
+- 터미널에서 `ls /dev/tty.usb*` 입력
+- `/dev/tty.usbmodem1101` 같은 이름이 나옴 → 이것을 코드에 입력
+
+Thonny가 열려 있으면 안 됩니다! Thonny를 먼저 닫고 PC 스크립트를 실행하세요.
+포트 이름은 USB를 뺐다 다시 꽂으면 바뀔 수 있어요.
+:::
+
 ```python
 # PC에서 실행 — Pico의 Serial 출력을 실시간 그래프로 표시
 import serial
@@ -665,16 +693,41 @@ Supabase는 오픈소스 Firebase 대안으로, PostgreSQL 데이터베이스와
 
 ### Step 1: Supabase 프로젝트 설정
 
-:::note[Supabase 가입 및 프로젝트 생성]
-1. [supabase.com](https://supabase.com) 에서 GitHub 계정으로 가입 (무료)
-2. **New Project** 클릭 → 프로젝트 이름과 데이터베이스 비밀번호 설정
-3. Region은 **Northeast Asia (Tokyo)** 선택 — 한국에서 가장 빠릅니다
-4. 프로젝트 생성까지 약 2분 소요
+:::note[Supabase 가입하기 — 처음이라면 여기부터!]
+Supabase는 무료 클라우드 데이터베이스예요. 우리 센서 데이터를 인터넷에 저장하고, 어디서든 볼 수 있게 해줍니다.
+
+**1단계: 계정 만들기**
+1. 브라우저에서 [supabase.com](https://supabase.com) 접속
+2. "Start your project" 또는 "Sign Up" 클릭
+3. **GitHub 계정이 있다면**: "Continue with GitHub" 클릭
+   **GitHub 계정이 없다면**: "Sign Up with Email" 클릭 → 이메일, 비밀번호 입력 → 인증 메일 확인
+4. 로그인 성공!
+
+**2단계: 프로젝트 만들기**
+1. 처음 로그인하면 "Organization" 만들기가 나옵니다 → 아무 이름이나 입력 (예: "내 프로젝트")
+2. "New Project" 클릭
+3. 설정 입력:
+   - **Name**: 아무 이름 (예: "pico-sensors")
+   - **Database Password**: 비밀번호 입력 (이 비밀번호는 메모해두세요!)
+   - **Region**: "Northeast Asia (Tokyo)" 선택 (가장 가까운 서버)
+4. "Create new project" 클릭 → 1-2분 기다리면 프로젝트 완성!
 :::
 
 ### Step 2: 센서 데이터 테이블 생성
 
-프로젝트가 생성되면 **SQL Editor**에서 아래 SQL을 실행하세요:
+프로젝트가 생성되면 **SQL Editor**에서 아래 SQL을 실행하세요.
+
+:::note[SQL Editor 사용하기]
+**SQL이란?** 데이터베이스에 명령을 내리는 언어예요. 어렵지 않아요, 복사+붙여넣기만 하면 됩니다!
+
+1. 왼쪽 메뉴에서 **"SQL Editor"** 아이콘 클릭 (데이터베이스 아이콘 모양)
+2. "New query" 버튼 클릭
+3. 아래 SQL 코드를 **전체 복사**하여 붙여넣기
+4. **"Run"** 버튼 클릭 (또는 Ctrl+Enter / Cmd+Enter)
+5. 아래쪽에 "Success. No rows returned" 메시지가 나오면 성공!
+   - 이 메시지가 정상이에요 — 테이블을 "만드는" 명령이라 돌려줄 데이터가 없는 거예요
+   - 만약 "ERROR" 메시지가 나오면: "relation already exists"는 이미 만들어져 있다는 뜻이니 괜찮아요
+:::
 
 ```sql
 -- 센서 데이터 저장 테이블
@@ -701,13 +754,45 @@ ALTER TABLE sensor_data REPLICA IDENTITY FULL;
 - `created_at`: 자동으로 현재 시각이 기록되어 시계열 분석에 활용
 :::
 
+:::tip[REPLICA IDENTITY FULL이란?]
+`ALTER TABLE sensor_data REPLICA IDENTITY FULL;` — 이 명령은 실시간 업데이트 기능을 켜는 설정이에요.
+이 줄이 없으면 대시보드가 새 데이터를 자동으로 감지하지 못합니다.
+:::
+
 ### Step 3: API 키 확인 및 RLS 보안 설정
 
-**Settings → API**에서 두 가지를 복사하세요:
-- **Project URL**: `https://xxxx.supabase.co`
-- **anon (public) key**: `eyJhbGci...` (긴 문자열)
+:::caution[API 키 찾기 — 정확히 따라하세요!]
+1. 왼쪽 메뉴 맨 아래 **"Project Settings"** (톱니바퀴 아이콘) 클릭
+2. 왼쪽 하위 메뉴에서 **"API"** 클릭
+3. 두 가지를 복사합니다:
 
-그 다음, 데이터를 안전하게 보호하기 위해 **RLS(Row Level Security)** 정책을 설정합니다. SQL Editor에서 실행하세요:
+**Project URL** (프로젝트 주소):
+- "Project URL" 항목의 `https://xxxxx.supabase.co` 옆 복사 버튼 클릭
+- 이것을 Pico 코드의 `SUPABASE_URL`에 붙여넣기
+
+**anon public key** (공개 키):
+- "Project API keys" 섹션에서 **"anon" "public"** 이라고 적힌 키 옆 복사 버튼 클릭
+- 이 키는 매우 길어요 (200자 이상). 전체를 복사해야 합니다!
+- 이것을 Pico 코드의 `SUPABASE_KEY`에 붙여넣기
+
+**주의**: "service_role" "secret" 키는 절대 복사하지 마세요! 이것은 관리자 전용 키입니다.
+:::
+
+그 다음, 데이터를 안전하게 보호하기 위해 **RLS(Row Level Security)** 정책을 설정합니다.
+
+:::note[보안 설정 (RLS)]
+**RLS란?** "Row Level Security"의 약자로, 데이터베이스의 보안 규칙이에요.
+쉽게 말하면: "누가 데이터를 볼 수 있고, 누가 추가할 수 있는지" 정하는 규칙입니다.
+
+우리가 설정할 규칙:
+- 누구나 데이터를 **볼 수** 있음 (대시보드에서 보려고)
+- 누구나 데이터를 **추가할 수** 있음 (Pico가 보내려고)
+- 삭제나 수정은 안 됨 (데이터 보호)
+
+이 SQL도 SQL Editor에서 새 쿼리로 실행하세요 (위의 CREATE TABLE과 같은 곳에 이어서 붙이지 마세요!)
+:::
+
+SQL Editor에서 실행하세요:
 
 ```sql
 -- RLS 활성화
@@ -748,8 +833,10 @@ SSID = "학교WiFi이름"       # 학교 WiFi SSID
 PASSWORD = "WiFi비밀번호"   # WiFi 비밀번호
 
 # ── Supabase 설정 ──
-SUPABASE_URL = "https://xxxx.supabase.co"  # 본인 프로젝트 URL
-SUPABASE_KEY = "eyJhbGci..."               # anon (public) key
+# ⚠️ 아래 두 줄을 자신의 Supabase 정보로 교체하세요!
+# Settings → API에서 복사한 값을 붙여넣습니다
+SUPABASE_URL = "https://xxxxx.supabase.co"  # ← Project URL 전체를 붙여넣기
+SUPABASE_KEY = "eyJhbGci..."  # ← anon public 키 전체를 붙여넣기 (매우 긴 문자열)
 
 DEVICE_ID = "pico-01"  # 기기 식별자 (여러 대일 때 구분)
 
@@ -760,13 +847,15 @@ def connect_wifi():
     if not wlan.isconnected():
         print(f"WiFi 연결 중: {SSID}")
         wlan.connect(SSID, PASSWORD)
-        timeout = 0
-        while not wlan.isconnected():
-            time.sleep(1)
-            timeout += 1
-            if timeout > 20:
-                print("WiFi 연결 실패!")
-                return False
+        timeout = 40  # 최대 20초 대기 (0.5초 × 40)
+        while not wlan.isconnected() and timeout > 0:
+            time.sleep(0.5)
+            timeout -= 1
+        if not wlan.isconnected():
+            print("WiFi 연결 실패!")
+            print("SSID와 비밀번호를 확인하세요")
+            print("Pico는 2.4GHz WiFi만 지원합니다")
+            return False
     print(f"WiFi 연결 완료! IP: {wlan.ifconfig()[0]}")
     return True
 
@@ -870,7 +959,18 @@ else:
 
 ### Step 5: 실시간 웹 대시보드
 
-이제 가장 멋진 부분입니다. 아래 HTML 파일 하나로 **실시간 클라우드 대시보드**를 만들 수 있어요. PC에 `dashboard.html`로 저장하고 브라우저에서 열면 됩니다.
+이제 가장 멋진 부분입니다. 아래 HTML 파일 하나로 **실시간 클라우드 대시보드**를 만들 수 있어요.
+
+:::tip[dashboard.html 파일 만들기]
+1. **메모장**(Windows) 또는 **텍스트 편집기**(Mac)를 엽니다
+   - Mac에서는: 포맷 → 일반 텍스트로 변환 먼저!
+   - 한글(HWP)이나 Word는 안 됩니다!
+2. 아래 코드를 전체 복사하여 붙여넣습니다
+3. **중요!** 코드 안의 `YOUR_SUPABASE_URL`과 `YOUR_SUPABASE_KEY`를 자신의 값으로 교체
+4. "다른 이름으로 저장" → 파일 이름: `dashboard.html`
+   - 파일 형식: "모든 파일 (*.*)"로 변경
+5. 저장된 파일을 더블클릭하면 브라우저에서 대시보드가 열립니다!
+:::
 
 ```html
 <!DOCTYPE html>
@@ -965,8 +1065,9 @@ else:
 
   <script>
     // ★ 본인의 Supabase 정보로 변경하세요 ★
-    const SUPABASE_URL = 'https://xxxx.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGci...';
+    // Settings → API에서 복사한 값을 붙여넣습니다
+    const SUPABASE_URL = 'https://xxxxx.supabase.co';  // ← Project URL 붙여넣기
+    const SUPABASE_KEY = 'eyJhbGci...';  // ← anon public 키 전체 붙여넣기
 
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -1070,6 +1171,21 @@ else:
 3. **일일 보고서**: 하루 동안 수집된 데이터를 자동으로 정리하여 보고서 생성
 4. **QR 코드 접속**: 대시보드 URL을 QR 코드로 만들어 복도에 부착 — 누구나 스마트폰으로 확인
 :::
+
+---
+
+### 자주 만나는 오류와 해결법
+
+| 오류 상황 | 원인 | 해결 방법 |
+|---|---|---|
+| Pico에서 "WiFi 연결 실패" | SSID/비밀번호 오류 | 철자 확인, 2.4GHz WiFi인지 확인 |
+| Pico에서 "전송 실패" 반복 | Supabase URL/KEY 오류 | Settings → API에서 다시 복사 |
+| 대시보드에 데이터가 안 나옴 | URL/KEY가 HTML에도 필요 | dashboard.html의 URL과 KEY도 교체했는지 확인 |
+| SQL "permission denied" | RLS 설정 안 됨 | RLS SQL 코드를 실행했는지 확인 |
+| SQL "relation already exists" | 이미 테이블이 있음 | 정상! 무시해도 됩니다 |
+| `ModuleNotFoundError: serial` | pyserial 미설치 | `pip install pyserial` (pyserial입니다, serial 아님!) |
+| Thonny와 PC 스크립트 충돌 | 시리얼 포트 점유 | Thonny를 완전히 닫은 후 PC 스크립트 실행 |
+| 대시보드 실시간 갱신 안 됨 | REPLICA IDENTITY 미설정 | `ALTER TABLE sensor_data REPLICA IDENTITY FULL;` 실행 |
 
 ---
 
