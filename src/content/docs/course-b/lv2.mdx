@@ -629,7 +629,7 @@ import time
 i2c = I2C(1, sda=Pin(6), scl=Pin(7), freq=100000)
 dht_addr = 0x38
 light = ADC(Pin(26))  # Grove A0 포트
-sound = ADC(Pin(27))  # Grove A2 포트
+sound = ADC(Pin(27))  # Grove A1 포트
 time.sleep(0.1)
 
 from ssd1306 import SSD1306_I2C
