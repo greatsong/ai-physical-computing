@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>나의 성장 레이더 차트</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+h1{font-size:1.6rem;font-weight:800;background:linear-gradient(135deg,#38bdf8,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px}
+.subtitle{color:#94a3b8;font-size:0.85rem;margin-bottom:16px;text-align:center}
+.legend{display:flex;gap:20px;justify-content:center;margin-bottom:16px;font-size:0.8rem}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-dot{width:12px;height:12px;border-radius:50%}
+.dot-before{background:rgba(56,189,248,0.8)}
+.dot-after{background:rgba(249,115,22,0.8)}
+.chart-area{position:relative;width:100%;max-width:360px;margin:0 auto 16px}
+canvas{display:block;width:100%;height:auto}
+.score-badge{text-align:center;margin-bottom:16px;padding:12px;background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(249,115,22,0.08));border-radius:16px;border:1px solid #1e293b}
+.score-num{font-size:3rem;font-weight:900;background:linear-gradient(135deg,#38bdf8,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1}
+.score-label{color:#64748b;font-size:0.75rem;margin-top:2px}
+.sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:520px;margin-bottom:16px}
+@media(max-width:480px){.sliders{grid-template-columns:1fr}}
+.slider-group{background:#1e293b;border-radius:12px;padding:10px 12px;border:1px solid #334155;transition:border-color 0.2s}
+.slider-group:hover{border-color:#475569}
+.slider-label{font-size:0.8rem;font-weight:700;color:#cbd5e1;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.slider-label .icon{font-size:1rem}
+.slider-row{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.tag{font-size:0.6rem;font-weight:700;width:28px;text-align:center;border-radius:4px;padding:2px 0;flex-shrink:0}
+.tag-before{background:rgba(56,189,248,0.2);color:#38bdf8}
+.tag-after{background:rgba(249,115,22,0.2);color:#f97316}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:6px;border-radius:3px;outline:none;cursor:pointer;background:#334155}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid #0f172a}
+input[type=range].before::-webkit-slider-thumb{background:#38bdf8}
+input[type=range].after::-webkit-slider-thumb{background:#f97316}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid #0f172a}
+input[type=range].before::-moz-range-thumb{background:#38bdf8}
+input[type=range].after::-moz-range-thumb{background:#f97316}
+.slider-val{font-size:0.8rem;font-weight:800;width:16px;text-align:right;flex-shrink:0}
+.val-before{color:#38bdf8}
+.val-after{color:#f97316}
+.growth-indicator{font-size:0.65rem;text-align:right;margin-top:1px;font-weight:700}
+.growth-up{color:#4ade80}
+.growth-zero{color:#64748b}
+.growth-down{color:#f87171}
+.recommendation{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:16px 20px;text-align:center;width:100%;max-width:520px;margin-bottom:16px}
+.rec-level{font-size:1.2rem;font-weight:800;color:#f97316}
+.rec-text{color:#94a3b8;font-size:0.8rem;margin-top:4px}
+.buttons{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:20px}
+button{padding:12px 24px;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;transition:transform 0.1s,box-shadow 0.2s;font-family:inherit}
+button:active{transform:scale(0.96)}
+.btn-save{background:linear-gradient(135deg,#38bdf8,#0ea5e9);color:#0f172a;box-shadow:0 4px 15px rgba(56,189,248,0.3)}
+.btn-cert{background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;box-shadow:0 4px 15px rgba(249,115,22,0.3)}
+.btn-back{background:#334155;color:#e2e8f0}
+
+/* 인증샷 모드 */
+.cert-overlay{display:none;position:fixed;inset:0;background:#0f172a;z-index:100;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.cert-overlay.active{display:flex}
+.cert-card{background:linear-gradient(145deg,#1e293b,#0f172a);border:3px solid transparent;border-image:linear-gradient(135deg,#38bdf8,#f97316,#a855f7) 1;padding:40px 32px;text-align:center;max-width:420px;width:100%;position:relative}
+.cert-watermark{position:absolute;top:12px;left:0;right:0;font-size:0.55rem;letter-spacing:6px;color:#334155;text-transform:uppercase}
+.cert-title{font-size:1.5rem;font-weight:900;background:linear-gradient(135deg,#38bdf8,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:16px 0 8px}
+.cert-sub{color:#94a3b8;font-size:0.9rem;margin-bottom:20px}
+.cert-score-big{font-size:4rem;font-weight:900;color:#f97316;line-height:1}
+.cert-score-label{color:#64748b;font-size:0.8rem;margin-top:4px;margin-bottom:20px}
+.cert-journey{display:flex;align-items:center;justify-content:center;gap:8px;color:#cbd5e1;font-size:0.8rem;margin-bottom:20px;flex-wrap:wrap}
+.cert-arrow{color:#f97316;font-weight:700}
+.cert-date{color:#475569;font-size:0.75rem;margin-bottom:20px}
+.cert-msg{color:#94a3b8;font-size:0.85rem;line-height:1.6;padding:0 16px}
+.cert-photo-tip{margin-top:24px;background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:10px;padding:14px;color:#f97316;font-size:0.8rem;line-height:1.5}
+</style>
+</head>
+<body>
+
+<h1>나의 성장 레이더 차트</h1>
+<p class="subtitle">1차시의 나 vs 지금의 나 — 슬라이더로 비교해보세요!</p>
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-dot dot-before"></span> Before (1차시)</div>
+  <div class="legend-item"><span class="legend-dot dot-after"></span> After (지금)</div>
+</div>
+
+<div class="chart-area">
+  <canvas id="radar" width="400" height="400"></canvas>
+</div>
+
+<div class="score-badge">
+  <div class="score-num" id="totalScore">+16</div>
+  <div class="score-label">총 성장 점수 (최대 +32)</div>
+</div>
+
+<div class="sliders" id="sliders"></div>
+
+<div class="recommendation" id="recommendation"></div>
+
+<div class="buttons">
+  <button class="btn-save" onclick="saveChart()">📥 이미지 저장</button>
+  <button class="btn-cert" onclick="showCert()">📸 인증샷 모드</button>
+</div>
+
+<!-- 인증샷 오버레이 -->
+<div class="cert-overlay" id="certOverlay">
+  <div class="cert-card" id="certCard">
+    <div class="cert-watermark">CERTIFICATE OF GROWTH</div>
+    <div class="cert-title">AI 피지컬 컴퓨팅<br>코스 A 수료</div>
+    <div class="cert-sub">15차시의 여정을 완주했습니다!</div>
+    <div class="cert-score-big" id="certScore">+16</div>
+    <div class="cert-score-label">성장 점수</div>
+    <div class="cert-journey">
+      <span>직접 코딩</span>
+      <span class="cert-arrow">→</span>
+      <span>바이브 코딩</span>
+      <span class="cert-arrow">→</span>
+      <span>대시보드</span>
+      <span class="cert-arrow">→</span>
+      <span>머신러닝</span>
+    </div>
+    <div class="cert-date" id="certDate"></div>
+    <div class="cert-msg">
+      센서로 세상을 읽고, 코드로 표현하고,<br>
+      AI로 분석하는 사람이 되었습니다.
+    </div>
+    <div class="cert-photo-tip">
+      📸 이 화면과 함께 OLED 대시보드를 들고<br>
+      <strong>인증샷</strong>을 찍어보세요!
+    </div>
+  </div>
+  <div style="margin-top:20px;display:flex;gap:10px">
+    <button class="btn-save" onclick="saveCert()">📥 이미지 저장</button>
+    <button class="btn-back" onclick="hideCert()">← 돌아가기</button>
+  </div>
+</div>
+
+<script>
+const SKILLS = [
+  { name: '센서 연결', icon: '🔌' },
+  { name: '코드 작성', icon: '💻' },
+  { name: '바이브 코딩', icon: '🤖' },
+  { name: '대시보드', icon: '📊' },
+  { name: '데이터 해석', icon: '🔍' },
+  { name: 'ML 이해', icon: '🧠' },
+  { name: '팀 협업', icon: '🤝' },
+  { name: '발표 능력', icon: '🎤' }
+];
+
+let befores = [1,1,1,1,1,1,2,2];
+let afters  = [4,3,4,3,4,3,4,3];
+
+const canvas = document.getElementById('radar');
+const ctx = canvas.getContext('2d');
+const W = 400, H = 400, CX = W/2, CY = H/2, R = 150;
+
+// === 슬라이더 생성 ===
+const slidersEl = document.getElementById('sliders');
+SKILLS.forEach((skill, i) => {
+  const g = document.createElement('div');
+  g.className = 'slider-group';
+  g.innerHTML = `
+    <div class="slider-label"><span class="icon">${skill.icon}</span> ${skill.name}</div>
+    <div class="slider-row">
+      <span class="tag tag-before">B</span>
+      <input type="range" class="before" min="1" max="5" value="${befores[i]}" data-idx="${i}" data-type="before">
+      <span class="slider-val val-before" id="bv${i}">${befores[i]}</span>
+    </div>
+    <div class="slider-row">
+      <span class="tag tag-after">A</span>
+      <input type="range" class="after" min="1" max="5" value="${afters[i]}" data-idx="${i}" data-type="after">
+      <span class="slider-val val-after" id="av${i}">${afters[i]}</span>
+    </div>
+    <div class="growth-indicator" id="gi${i}"></div>
+  `;
+  slidersEl.appendChild(g);
+});
+
+// 이벤트 위임
+slidersEl.addEventListener('input', e => {
+  if (e.target.type !== 'range') return;
+  const idx = +e.target.dataset.idx;
+  const type = e.target.dataset.type;
+  if (type === 'before') {
+    befores[idx] = +e.target.value;
+    document.getElementById('bv' + idx).textContent = e.target.value;
+  } else {
+    afters[idx] = +e.target.value;
+    document.getElementById('av' + idx).textContent = e.target.value;
+  }
+  update();
+});
+
+// === 레이더 차트 그리기 ===
+function drawRadar() {
+  ctx.clearRect(0, 0, W, H);
+  const n = SKILLS.length;
+
+  // 배경 원
+  for (let level = 1; level <= 5; level++) {
+    const r = (level / 5) * R;
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+      const x = CX + r * Math.cos(angle);
+      const y = CY + r * Math.sin(angle);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = level === 5 ? '#475569' : '#1e293b';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // 점수 라벨
+    if (level < 5) {
+      ctx.fillStyle = '#334155';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(level, CX, CY - r + 12);
+    }
+  }
+
+  // 축 선 + 라벨
+  for (let i = 0; i < n; i++) {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    ctx.lineTo(CX + R * Math.cos(angle), CY + R * Math.sin(angle));
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    const lx = CX + (R + 24) * Math.cos(angle);
+    const ly = CY + (R + 24) * Math.sin(angle);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'bold 11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(SKILLS[i].name, lx, ly);
+  }
+
+  // Before 다각형
+  drawPoly(befores, 'rgba(56,189,248,0.12)', 'rgba(56,189,248,0.6)', 2);
+  // After 다각형
+  drawPoly(afters, 'rgba(249,115,22,0.15)', 'rgba(249,115,22,0.8)', 2.5);
+
+  // 점
+  drawDots(befores, '#38bdf8', 4);
+  drawDots(afters, '#f97316', 5);
+}
+
+function drawPoly(vals, fill, stroke, lw) {
+  const n = vals.length;
+  ctx.beginPath();
+  for (let i = 0; i <= n; i++) {
+    const idx = i % n;
+    const angle = (Math.PI * 2 * idx / n) - Math.PI / 2;
+    const r = (vals[idx] / 5) * R;
+    const x = CX + r * Math.cos(angle);
+    const y = CY + r * Math.sin(angle);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = lw;
+  ctx.stroke();
+}
+
+function drawDots(vals, color, radius) {
+  const n = vals.length;
+  for (let i = 0; i < n; i++) {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    const r = (vals[i] / 5) * R;
+    const x = CX + r * Math.cos(angle);
+    const y = CY + r * Math.sin(angle);
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+// === 업데이트 ===
+function update() {
+  drawRadar();
+
+  // 총점
+  const total = afters.reduce((s, v, i) => s + (v - befores[i]), 0);
+  document.getElementById('totalScore').textContent = (total >= 0 ? '+' : '') + total;
+
+  // 각 역량 성장 표시
+  SKILLS.forEach((_, i) => {
+    const g = afters[i] - befores[i];
+    const el = document.getElementById('gi' + i);
+    if (g > 0) { el.textContent = '↑ +' + g; el.className = 'growth-indicator growth-up'; }
+    else if (g < 0) { el.textContent = '↓ ' + g; el.className = 'growth-indicator growth-down'; }
+    else { el.textContent = '— 0'; el.className = 'growth-indicator growth-zero'; }
+  });
+
+  // 추천
+  const avg = total / SKILLS.length;
+  const recEl = document.getElementById('recommendation');
+  if (avg >= 3) {
+    recEl.innerHTML = '<div class="rec-level">🚀 코스 B: Lv.3 연구자부터 도전!</div><div class="rec-text">놀라운 성장이에요! 바이브 코딩 + AI 분석 프로젝트에 바로 도전할 준비가 되었어요.</div>';
+  } else if (avg >= 2) {
+    recEl.innerHTML = '<div class="rec-level">⚡ 코스 B: Lv.2 발명가부터 도전!</div><div class="rec-text">꾸준히 성장했어요! 복합 센서 스마트 시스템을 만들어 보세요.</div>';
+  } else if (avg >= 1) {
+    recEl.innerHTML = '<div class="rec-level">🌱 코스 B: Lv.1 탐험가부터 시작!</div><div class="rec-text">좋은 시작이에요! 단일 센서 대시보드 프로젝트부터 출발해보세요.</div>';
+  } else {
+    recEl.innerHTML = '<div class="rec-level">📖 코스 A 복습을 추천해요</div><div class="rec-text">관심 있는 차시를 다시 도전한 뒤 코스 B에 합류하세요.</div>';
+  }
+}
+
+// === 이미지 저장 ===
+function saveChart() {
+  const ec = document.createElement('canvas');
+  ec.width = 640; ec.height = 760;
+  const e = ec.getContext('2d');
+
+  // 배경
+  e.fillStyle = '#0f172a';
+  e.fillRect(0, 0, 640, 760);
+
+  // 테두리
+  const grd = e.createLinearGradient(0, 0, 640, 0);
+  grd.addColorStop(0, '#38bdf8');
+  grd.addColorStop(0.5, '#f97316');
+  grd.addColorStop(1, '#a855f7');
+  e.strokeStyle = grd;
+  e.lineWidth = 3;
+  e.strokeRect(6, 6, 628, 748);
+
+  // 제목
+  e.fillStyle = '#f8fafc';
+  e.font = 'bold 22px system-ui';
+  e.textAlign = 'center';
+  e.fillText('AI 피지컬 컴퓨팅 — 나의 성장 레이더 차트', 320, 42);
+
+  // 날짜
+  e.fillStyle = '#64748b';
+  e.font = '12px system-ui';
+  e.fillText(new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }), 320, 62);
+
+  // 레이더 차트 복사
+  e.drawImage(canvas, 120, 70, 400, 400);
+
+  // 총점
+  const total = afters.reduce((s, v, i) => s + (v - befores[i]), 0);
+  e.fillStyle = '#f97316';
+  e.font = 'bold 40px system-ui';
+  e.textAlign = 'center';
+  e.fillText('성장 점수: ' + (total >= 0 ? '+' : '') + total, 320, 510);
+
+  // 범례
+  e.font = '11px system-ui';
+  e.fillStyle = '#38bdf8'; e.fillText('● Before (1차시)', 230, 535);
+  e.fillStyle = '#f97316'; e.fillText('● After (지금)', 410, 535);
+
+  // 역량 테이블
+  e.font = '13px system-ui';
+  e.textAlign = 'left';
+  const sy = 560;
+  SKILLS.forEach((skill, i) => {
+    const y = sy + i * 22;
+    e.fillStyle = '#64748b';
+    e.fillText(skill.icon, 80, y);
+    e.fillStyle = '#cbd5e1';
+    e.fillText(skill.name, 108, y);
+    e.fillStyle = '#38bdf8';
+    e.fillText(befores[i] + '점', 250, y);
+    e.fillStyle = '#64748b';
+    e.fillText('→', 290, y);
+    e.fillStyle = '#f97316';
+    e.fillText(afters[i] + '점', 320, y);
+    const g = afters[i] - befores[i];
+    e.fillStyle = g > 0 ? '#4ade80' : g < 0 ? '#f87171' : '#64748b';
+    e.textAlign = 'right';
+    e.fillText(g > 0 ? '+' + g : '' + g, 420, y);
+    e.textAlign = 'left';
+  });
+
+  // 여정
+  e.fillStyle = '#475569';
+  e.font = '11px system-ui';
+  e.textAlign = 'center';
+  e.fillText('직접 코딩 → 바이브 코딩 → 대시보드 → 머신러닝', 320, 740);
+
+  // 다운로드
+  const link = document.createElement('a');
+  link.download = '나의_성장_레이더차트.png';
+  link.href = ec.toDataURL('image/png');
+  link.click();
+}
+
+// === 인증샷 모드 ===
+function showCert() {
+  const total = afters.reduce((s, v, i) => s + (v - befores[i]), 0);
+  document.getElementById('certScore').textContent = (total >= 0 ? '+' : '') + total;
+  document.getElementById('certDate').textContent = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  document.getElementById('certOverlay').classList.add('active');
+}
+
+function hideCert() {
+  document.getElementById('certOverlay').classList.remove('active');
+}
+
+function saveCert() {
+  const total = afters.reduce((s, v, i) => s + (v - befores[i]), 0);
+  const c = document.createElement('canvas');
+  c.width = 500; c.height = 600;
+  const e = c.getContext('2d');
+
+  // 배경
+  e.fillStyle = '#0f172a';
+  e.fillRect(0, 0, 500, 600);
+
+  // 테두리
+  const grd = e.createLinearGradient(0, 0, 500, 600);
+  grd.addColorStop(0, '#38bdf8');
+  grd.addColorStop(0.5, '#f97316');
+  grd.addColorStop(1, '#a855f7');
+  e.strokeStyle = grd;
+  e.lineWidth = 4;
+  e.strokeRect(8, 8, 484, 584);
+
+  e.textAlign = 'center';
+
+  // CERTIFICATE
+  e.fillStyle = '#475569';
+  e.font = '10px system-ui';
+  e.letterSpacing = '4px';
+  e.fillText('CERTIFICATE OF GROWTH', 250, 50);
+
+  // 제목
+  e.fillStyle = '#f8fafc';
+  e.font = 'bold 28px system-ui';
+  e.fillText('AI 피지컬 컴퓨팅', 250, 100);
+  e.fillText('코스 A 수료', 250, 135);
+
+  // 서브
+  e.fillStyle = '#94a3b8';
+  e.font = '14px system-ui';
+  e.fillText('15차시의 여정을 완주했습니다!', 250, 170);
+
+  // 점수
+  e.fillStyle = '#f97316';
+  e.font = 'bold 72px system-ui';
+  e.fillText((total >= 0 ? '+' : '') + total, 250, 260);
+  e.fillStyle = '#64748b';
+  e.font = '13px system-ui';
+  e.fillText('성장 점수', 250, 285);
+
+  // 여정
+  e.fillStyle = '#cbd5e1';
+  e.font = '14px system-ui';
+  e.fillText('직접 코딩  →  바이브 코딩  →  대시보드  →  머신러닝', 250, 330);
+
+  // 날짜
+  e.fillStyle = '#475569';
+  e.font = '12px system-ui';
+  e.fillText(new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }), 250, 370);
+
+  // 메시지
+  e.fillStyle = '#94a3b8';
+  e.font = '13px system-ui';
+  e.fillText('센서로 세상을 읽고, 코드로 표현하고,', 250, 420);
+  e.fillText('AI로 분석하는 사람이 되었습니다.', 250, 440);
+
+  // 역량 요약
+  e.font = '11px system-ui';
+  const cols = 2, rows = 4;
+  for (let i = 0; i < SKILLS.length; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = col === 0 ? 120 : 370;
+    const y = 480 + row * 20;
+    e.fillStyle = '#64748b';
+    e.textAlign = 'left';
+    e.fillText(SKILLS[i].icon + ' ' + SKILLS[i].name, x - 80, y);
+    const g = afters[i] - befores[i];
+    e.fillStyle = g > 0 ? '#4ade80' : '#64748b';
+    e.fillText(g > 0 ? '+' + g : '±0', x + 30, y);
+  }
+
+  e.textAlign = 'center';
+  e.fillStyle = '#334155';
+  e.font = '9px system-ui';
+  e.fillText('greatsong.github.io/ai-physical-computing', 250, 580);
+
+  const link = document.createElement('a');
+  link.download = '코스A_수료_인증.png';
+  link.href = c.toDataURL('image/png');
+  link.click();
+}
+
+// 초기 렌더링
+update();
+</script>
+</body>
+</html>
