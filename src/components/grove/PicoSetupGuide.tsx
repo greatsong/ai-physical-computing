@@ -11,8 +11,8 @@ const STEPS: Step[] = [
   {
     id: 'orient',
     title: '1. 방향 확인',
-    description: 'Pico 2 WH의 USB-C 포트가 위쪽을 향하도록 놓으세요.',
-    instruction: 'USB-C 포트와 BOOTSEL 버튼의 위치를 확인합니다.',
+    description: 'Pico 2 WH의 Micro USB 포트가 위쪽을 향하도록 놓으세요.',
+    instruction: 'Micro USB 포트와 BOOTSEL 버튼의 위치를 확인합니다.',
   },
   {
     id: 'shield',
@@ -23,7 +23,7 @@ const STEPS: Step[] = [
   {
     id: 'usb',
     title: '3. USB 연결',
-    description: 'USB-C 케이블로 컴퓨터와 Pico를 연결합니다.',
+    description: 'Micro USB 케이블로 컴퓨터와 Pico를 연결합니다.',
     instruction: '데이터 전송이 되는 케이블을 사용하세요. 충전 전용 케이블은 Pico를 인식하지 못합니다.',
   },
   {
@@ -93,7 +93,7 @@ export default function PicoSetupGuide() {
             RP2350
           </text>
 
-          {/* USB-C 포트 */}
+          {/* Micro USB 포트 */}
           <rect
             x={265} y={17} width={30} height={16} rx={4}
             fill={activeStep === 2 ? '#22c55e' : '#94a3b8'}
@@ -101,7 +101,7 @@ export default function PicoSetupGuide() {
             strokeWidth={activeStep === 2 ? 2 : 1}
           />
           <text x={280} y={28} textAnchor="middle" fontSize={6} fill="#fff" fontWeight={600}>
-            USB-C
+            Micro USB
           </text>
 
           {/* BOOTSEL 버튼 */}
