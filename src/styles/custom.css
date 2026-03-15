@@ -118,3 +118,37 @@
   background: rgba(148, 163, 184, 0.15);
   color: #94a3b8;
 }
+
+/* === 모바일 반응형 === */
+
+/* 테이블 가로 스크롤 (넓은 테이블이 화면을 밀지 않도록) */
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* 전체 페이지 넘침 방지 */
+.content-panel {
+  overflow-x: hidden;
+}
+
+@media (max-width: 640px) {
+  /* 모바일에서 테이블 폰트 축소 */
+  .sl-markdown-content table {
+    font-size: 0.8rem;
+  }
+
+  .sl-markdown-content table th,
+  .sl-markdown-content table td {
+    padding: 0.35rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  /* 코드 블록 줄바꿈 */
+  .sl-markdown-content pre {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
