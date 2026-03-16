@@ -73,7 +73,7 @@ const KEYFRAMES = `
 `;
 
 // === 센서 이름을 개별 항목으로 분리 ===
-// "SCD41+DHT20+OLED" → ["SCD41", "DHT20", "OLED"]
+// "SCD30+DHT20+OLED" → ["SCD30", "DHT20", "OLED"]
 function parseSensorNames(sensorName: string): string[] {
   return sensorName.split('+').map(s => s.trim()).filter(Boolean);
 }
@@ -380,7 +380,7 @@ export default function GroveShieldMap({
   const [hoveredPort, setHoveredPort] = useState<string | null>(null);
 
   // 같은 포트에 여러 센서가 연결된 경우를 처리
-  // "SCD41+DHT20+OLED" 형태도 개별 분리
+  // "SCD30+DHT20+OLED" 형태도 개별 분리
   const sensorsByPort = new Map<string, string[]>();
   for (const s of connectedSensors) {
     const names = parseSensorNames(s.sensorName);

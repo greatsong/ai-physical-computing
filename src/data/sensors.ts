@@ -50,14 +50,14 @@ humi = sensor.humidity
 print(f"온도: {temp}°C, 습도: {humi}%")`,
   },
   {
-    id: 'scd41',
+    id: 'scd30',
     name: 'CO2 센서',
-    model: 'SCD41',
+    model: 'SCD30',
     category: '환경',
     portType: 'I2C',
     difficulty: 2,
-    description: '이산화탄소 농도를 정밀 측정하는 환경 센서',
-    measureRange: '400~5000ppm',
+    description: '이산화탄소 농도를 정밀 측정하는 NDIR 방식 환경 센서',
+    measureRange: '400~10000ppm',
     usedInLessons: ['5차시'],
     projectIdeas: [
       '환기 타이밍 알려주는 CO2 신호등',
@@ -66,23 +66,23 @@ print(f"온도: {temp}°C, 습도: {humi}%")`,
     ],
     pinInfo: 'I2C (GP6=SDA, GP7=SCL)',
     codeSnippet: `from machine import I2C, Pin
-from scd4x import SCD4X
+from scd30 import SCD30
 
 i2c = I2C(1, sda=Pin(6), scl=Pin(7))
-sensor = SCD4X(i2c)
-sensor.start_periodic_measurement()
+sensor = SCD30(i2c)
+sensor.start_continous_measurement()
 co2 = sensor.co2
 print(f"CO2: {co2} ppm")`,
   },
   {
-    id: 'bmp280',
-    name: '기압 센서',
-    model: 'BMP280',
+    id: 'aht20-bmp280',
+    name: '온습도+기압 센서',
+    model: 'AHT20+BMP280',
     category: '환경',
     portType: 'I2C',
     difficulty: 1,
-    description: '대기압과 고도를 측정하는 센서',
-    measureRange: '300~1100hPa',
+    description: '온습도(AHT20)와 대기압/고도(BMP280)를 동시에 측정하는 콤보 모듈',
+    measureRange: '300~1100hPa, -40~85°C',
     projectIdeas: [
       '층별 기압 차이로 고도 계산하기',
       '날씨 변화 예측 장치 만들기',
@@ -222,11 +222,11 @@ print(f"NO2: {no2}, CO: {co}, VOC: {voc}")`,
   {
     id: 'sound',
     name: '소리 센서',
-    model: 'Sound Sensor',
+    model: 'Analog Microphone (MEMS)',
     category: '소리/진동',
     portType: '아날로그',
     difficulty: 1,
-    description: '주변 소음 레벨을 측정하는 센서',
+    description: 'MEMS 마이크로 주변 소음 레벨을 측정하는 센서',
     usedInLessons: ['6차시'],
     projectIdeas: [
       '도서관 소음 레벨 모니터링',
@@ -500,9 +500,9 @@ print(f"가속: {ax:.1f},{ay:.1f},{az:.1f}")
 print(f"자이로: {gx:.1f},{gy:.1f},{gz:.1f}")`,
   },
   {
-    id: 'gps-air530',
+    id: 'gps-neo6m',
     name: 'GPS 센서',
-    model: 'Air530',
+    model: 'NEO-6M',
     category: '거리/움직임',
     portType: 'UART',
     difficulty: 3,
@@ -642,26 +642,28 @@ angle = raw / 65535 * 300  # 0~300도
 print(f"각도: {angle:.1f}°")`,
   },
   {
-    id: 'thumb-joystick',
-    name: '조이스틱',
-    model: 'Thumb Joystick',
+    id: 'ps2-joystick',
+    name: 'PS2 조이스틱',
+    model: 'PS2 조이스틱',
     category: '입력',
     portType: '아날로그',
     difficulty: 1,
-    description: 'X/Y 2축 방향 입력 장치',
+    description: 'X/Y 2축 아날로그 + 버튼 입력 장치',
     projectIdeas: [
       'OLED 화면 위의 미니 게임 조작기',
       '서보 2개로 만든 팬틸트 제어기',
       '그림 그리기 입력 장치',
     ],
-    pinInfo: 'GP26 (A0=X축), GP27 (A1=Y축)',
+    pinInfo: 'GP26 (VRx), GP27 (VRy), GP16 (SW 버튼)',
     codeSnippet: `from machine import ADC, Pin
 
-x_axis = ADC(Pin(26))
-y_axis = ADC(Pin(27))
-x = x_axis.read_u16()
-y = y_axis.read_u16()
-print(f"X: {x}, Y: {y}")`,
+vrx = ADC(Pin(26))  # X축 아날로그
+vry = ADC(Pin(27))  # Y축 아날로그
+sw = Pin(16, Pin.IN, Pin.PULL_UP)  # 버튼
+x = vrx.read_u16()
+y = vry.read_u16()
+btn = sw.value()  # 0이면 눌림
+print(f"X: {x}, Y: {y}, 버튼: {btn}")`,
   },
   {
     id: 'touch',

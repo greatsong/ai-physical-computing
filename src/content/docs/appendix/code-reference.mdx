@@ -44,8 +44,8 @@ print(f"발견된 장치: {[hex(d) for d in devices]}")
 | SSD1306 (OLED) | 0x3C | `i2c.scan()` |
 | SGP30 (공기질) | 0x58 | `i2c.scan()` |
 | ADXL345 (가속도) | 0x53 | `i2c.scan()` |
-| BMP280 (기압) | 0x76 또는 0x77 | `i2c.scan()` |
-| SCD41 (CO2) | 0x62 | `i2c.scan()` |
+| AHT20+BMP280 (온습도+기압) | 0x76 또는 0x77 (BMP280), 0x38 (AHT20) | `i2c.scan()` |
+| SCD30 (CO2) | 0x61 | `i2c.scan()` |
 | MPU6050 (자이로+가속도) | 0x68 | `i2c.scan()` |
 | HM3301 (미세먼지) | 0x40 | `i2c.scan()` |
 | MLX90614 (비접촉 체온) | 0x5A | `i2c.scan()` |
@@ -83,7 +83,7 @@ print(f"Raw: {raw_value}, Percent: {percent}%, Voltage: {voltage:.2f}V")
 | 센서 | 권장 포트 | 출력 범위 |
 |------|----------|----------|
 | Light Sensor | A0 | 0~65535 (밝을수록 높음) |
-| Sound Sensor | A0 | 0~65535 (소리 클수록 높음) |
+| Analog Microphone (MEMS) | A0 | 0~65535 (소리 클수록 높음) |
 | Rotary Angle | A0 | 0~65535 (회전에 비례) |
 | Moisture Sensor | A0 | 0~65535 (수분 많을수록 높음) |
 

@@ -23,7 +23,7 @@ import SensorCatalog from '../../../components/sensor/SensorCatalog';
 |------|----------|------|----------|
 | DHT20 (온습도) | 온도, 습도 | I2C | 교실 쾌적도 측정 |
 | SGP30 (공기질) | CO2, TVOC | I2C | 공기질 모니터링, 환기 판단 |
-| BMP280 (기압) | 기압, 온도, 고도 | I2C | 날씨 예측, 고도 측정 |
+| AHT20+BMP280 (온습도+기압) | 온습도, 기압, 고도 | I2C | 날씨 예측, 고도 측정 |
 | SHT40 (정밀 온습도) | 온도, 습도 (고정밀) | I2C | 정밀 환경 측정 |
 
 ### 광학 센서
@@ -43,7 +43,7 @@ import SensorCatalog from '../../../components/sensor/SensorCatalog';
 
 | 센서 | 측정 대상 | 포트 | 핵심 용도 |
 |------|----------|------|----------|
-| Sound Sensor | 소리 크기 | ADC | 소음 측정, 소리 감지 |
+| Analog Microphone (MEMS) | 소리 크기 | ADC | 소음 측정, 소리 감지 |
 | Loudness Sensor | 소음 레벨 (보정) | ADC | 정밀 소음 모니터링 |
 | Piezo Vibration | 진동 감지 | ADC | 충격/진동 감지 |
 
