@@ -21,6 +21,8 @@ export default defineConfig({
           label: '시작 가이드',
           items: [
             { label: '장비와 소프트웨어 준비', slug: 'guide/setup' },
+            { label: '네트워크 이해하기', slug: 'guide/network' },
+            { label: 'Wi-Fi 설정 가이드', slug: 'guide/wifi-setup' },
           ],
         },
         {
