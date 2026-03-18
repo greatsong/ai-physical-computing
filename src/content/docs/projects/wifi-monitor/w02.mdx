@@ -330,6 +330,7 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(('0.0.0.0', 80))
 server.listen(2)
+server.settimeout(1.0)  # accept()를 1초만 기다림 → 유휴 시간에 스캔
 print()
 print("=" * 45)
 print(f"  대시보드 시작! http://{my_ip}")
@@ -347,6 +348,9 @@ while True:
         client.send(b"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\n\r\n")
         client.send(page.encode())
         client.close()
+    except OSError:
+        # 1초 동안 접속 없음 → 이 틈에 AP 스캔 (응답 지연 방지)
+        get_ap_cached()
     except Exception as e:
         print(f"에러: {e}")
         try:
