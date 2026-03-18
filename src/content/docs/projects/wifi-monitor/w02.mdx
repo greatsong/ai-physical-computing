@@ -1,0 +1,653 @@
+---
+title: "2차시: 실시간 대시보드"
+description: "RSSI 자동 갱신 + AP 스캔 + 서버사이드 렌더링 — 5초마다 자동 갱신되는 대시보드"
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+{/* 프로젝트 진행 바 */}
+<div class="project-progress">
+  <div class="prog-item prog-1 done">1. 첫 웹서버</div>
+  <div class="prog-item prog-2 current">2. 실시간 대시보드</div>
+  <div class="prog-item prog-3">3. 차트 시각화</div>
+  <div class="prog-item prog-4">4. 신호 지도</div>
+  <div class="prog-item prog-5">5. 나만의 기능</div>
+  <div class="prog-item prog-6">6. 발표</div>
+</div>
+
+{/* 결과물 미리보기 */}
+<div class="outcome-preview">
+  <div class="outcome-badge">이 차시가 끝나면</div>
+  <h4>대시보드가 살아 움직입니다</h4>
+  <p>RSSI가 <strong>5초마다 자동 갱신</strong>되고, 주변 Wi-Fi 네트워크 목록이 실시간으로 표시됩니다. 서버사이드 렌더링과 메모리 효율적인 <strong>캐싱 패턴</strong>을 체험합니다.</p>
+  <div class="outcome-items">
+    <div class="outcome-item">
+      <div class="item-icon">📶</div>
+      <div class="item-label">실시간 RSSI</div>
+      5초마다 자동 갱신
+    </div>
+    <div class="outcome-item">
+      <div class="item-icon">📋</div>
+      <div class="item-label">AP 스캔</div>
+      주변 Wi-Fi 목록 표시
+    </div>
+    <div class="outcome-item">
+      <div class="item-icon">💾</div>
+      <div class="item-label">시스템 정보</div>
+      메모리, 가동 시간, 접속 수
+    </div>
+    <div class="outcome-item">
+      <div class="item-icon">🔗</div>
+      <div class="item-label">AP 캐싱</div>
+      30초 간격 스캔 캐싱
+    </div>
+  </div>
+</div>
+
+> **오늘의 질문:** "새로고침을 누르지 않아도 데이터가 자동으로 바뀐다면?"
+
+<p style="color: var(--sl-color-gray-3);">
+50분 | 개인 실습 | 난이도 ●●●○○
+</p>
+
+---
+
+## 준비물
+
+| 준비물 | 설명 |
+|--------|------|
+| Raspberry Pi Pico 2 WH | 1차시 wifi_config.py가 저장된 Pico |
+| Micro USB **데이터** 케이블 | Pico를 PC에 연결 |
+| Thonny IDE | 코드 편집 및 업로드 |
+| AI 챗봇 | Claude, ChatGPT 등 |
+
+---
+
+## 1차시 vs 2차시
+
+<div class="compare-cards">
+  <div class="compare-card old">
+    <div class="compare-title">1차시</div>
+    <div class="compare-item">고정 데이터</div>
+    <div class="compare-item">새로고침 필요</div>
+    <div class="compare-item">RSSI 1개</div>
+  </div>
+  <div class="compare-arrow">→</div>
+  <div class="compare-card new">
+    <div class="compare-title">2차시</div>
+    <div class="compare-item">실시간 데이터</div>
+    <div class="compare-item">자동 갱신</div>
+    <div class="compare-item">RSSI + AP목록 + 시스템 정보</div>
+  </div>
+</div>
+
+---
+
+## 코드 실행하기
+
+1차시의 `wifi_config.py`는 그대로 두고, `main.py`만 새 코드로 교체하세요.
+
+Thonny에서 Pico의 `main.py`를 열고 → 전체 선택(Ctrl+A) → 붙여넣기(Ctrl+V) → 저장(Ctrl+S) → 실행(초록 버튼).
+
+<Aside type="tip" title="복사 & 붙여넣기">
+아래 코드 블록 오른쪽 위의 복사 버튼으로 전체 코드를 복사하세요. Thonny에서 Ctrl+A → Ctrl+V → Ctrl+S → 실행.
+</Aside>
+
+<div class="code-file-label">main.py — Pico에 저장 (1차시 코드 덮어쓰기)</div>
+
+```python collapse={10-254}
+# ============================================
+# 교실 Wi-Fi 모니터 - 2차시
+# 실시간 대시보드 + AP 스캔 (캐시)
+# ============================================
+import network
+import socket
+import time
+import gc
+from wifi_config import WIFI_SSID, WIFI_PASSWORD
+# ── Wi-Fi 연결 ──────────────────────────────
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+print("Wi-Fi 연결 중...")
+wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+wait = 0
+while not wlan.isconnected():
+    time.sleep(1)
+    wait += 1
+    if wait > 15:
+        print("연결 실패!")
+        raise SystemExit
+my_ip = wlan.ifconfig()[0]
+print(f"연결 완료! IP: {my_ip}")
+visit_count = 0
+start_time = time.ticks_ms()
+# ── AP 스캔 (캐시) ──────────────────────────
+ap_cache = '<tr><td colspan="4" style="color:#555;">스캔 중...</td></tr>'
+last_scan = 0
+SCAN_INTERVAL = 30
+def scan_ap():
+    try:
+        results = wlan.scan()
+        rows = []
+        for ap in sorted(results, key=lambda x: x[3], reverse=True)[:8]:
+            ssid = ap[0].decode('utf-8', 'ignore')
+            if not ssid:
+                continue
+            rssi = ap[3]
+            ch = ap[2]
+            auth = ap[4]
+            sec = ["OPEN", "WEP", "WPA", "WPA2", "WPA/2"][min(auth, 4)]
+            pct = max(0, min(100, (rssi + 90) * 100 // 60))
+            if rssi > -50:
+                color = "#51cf66"
+            elif rssi > -70:
+                color = "#ffd43b"
+            else:
+                color = "#ff6b6b"
+            mark = "⭐ " if ssid == WIFI_SSID else ""
+            tc = "#00d4ff" if ssid == WIFI_SSID else "#ccc"
+            rows.append(f'<tr><td style="color:{tc}">{mark}{ssid}</td>'
+                        f'<td><span style="display:inline-block;height:6px;width:{pct}%;max-width:60px;background:{color};border-radius:3px;">&nbsp;</span> {rssi}</td>'
+                        f'<td>{ch}</td><td>{sec}</td></tr>')
+        return "\n".join(rows) if rows else '<tr><td colspan="4" style="color:#555;">결과 없음</td></tr>'
+    except:
+        return '<tr><td colspan="4" style="color:#555;">스캔 에러</td></tr>'
+def get_ap_cached():
+    global ap_cache, last_scan
+    now = time.ticks_ms()
+    if time.ticks_diff(now, last_scan) > SCAN_INTERVAL * 1000:
+        ap_cache = scan_ap()
+        last_scan = now
+    return ap_cache
+
+# ── 페이지 CSS (일반 문자열 — 중괄호 이스케이프 불필요) ──
+PAGE_CSS = """<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: -apple-system, 'Segoe UI', sans-serif;
+        background: #0f0f23;
+        color: #ccc;
+        padding: 16px;
+        min-height: 100vh;
+    }
+    .header { text-align: center; padding: 12px 0 16px; }
+    .header h1 { color: #00d4ff; font-size: 1.4em; }
+    .header .sub { color: #555; font-size: 0.8em; margin-top: 4px; }
+    .dot {
+        display: inline-block;
+        width: 8px; height: 8px;
+        background: #51cf66;
+        border-radius: 50%;
+        margin-right: 6px;
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    .card {
+        background: #1a1a3e;
+        border-radius: 12px;
+        padding: 14px;
+        text-align: center;
+        border: 1px solid #2a2a5e;
+    }
+    .card.wide { grid-column: span 2; }
+    .card .icon { font-size: 1.5em; margin-bottom: 6px; }
+    .card .label { color: #888; font-size: 0.75em; margin-bottom: 2px; }
+    .card .value { color: #00d4ff; font-size: 1.3em; font-weight: bold; }
+    .card .unit { color: #666; font-size: 0.7em; }
+    .bar-bg {
+        width: 100%; height: 8px;
+        background: #2a2a5e;
+        border-radius: 4px;
+        margin-top: 8px;
+        overflow: hidden;
+    }
+    .bar { height: 100%; border-radius: 4px; }
+    .ap-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8em;
+        margin-top: 8px;
+    }
+    .ap-table th {
+        color: #888; font-weight: normal;
+        text-align: left; padding: 6px 4px;
+        border-bottom: 1px solid #2a2a5e;
+    }
+    .ap-table td {
+        padding: 5px 4px;
+        border-bottom: 1px solid #1a1a3e;
+    }
+    .footer {
+        text-align: center;
+        margin-top: 16px;
+        color: #333;
+        font-size: 0.7em;
+    }
+</style>"""
+
+# ── HTML 페이지 ─────────────────────────────
+def make_page():
+    gc.collect()
+    rssi = wlan.status('rssi')
+    uptime_sec = time.ticks_diff(time.ticks_ms(), start_time) // 1000
+    mem_free = gc.mem_free()
+    mem_alloc = gc.mem_alloc()
+    mem_total = mem_free + mem_alloc
+    mem_pct = round(mem_alloc / mem_total * 100, 1)
+    rssi_pct = max(0, min(100, (rssi + 90) * 100 // 60))
+    if rssi > -50:
+        quality, qcolor = "최고", "#51cf66"
+    elif rssi > -60:
+        quality, qcolor = "좋음", "#94d82d"
+    elif rssi > -70:
+        quality, qcolor = "보통", "#ffd43b"
+    elif rssi > -80:
+        quality, qcolor = "약함", "#ff922b"
+    else:
+        quality, qcolor = "매우 약함", "#ff6b6b"
+    if uptime_sec < 60:
+        uptime = f"{uptime_sec}초"
+    elif uptime_sec < 3600:
+        uptime = f"{uptime_sec // 60}분 {uptime_sec % 60}초"
+    else:
+        uptime = f"{uptime_sec // 3600}시간 {(uptime_sec % 3600) // 60}분"
+    ap_rows = get_ap_cached()
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="5">
+    <title>Wi-Fi 모니터</title>
+    {PAGE_CSS}
+</head>
+<body>
+    <div class="header">
+        <h1>Wi-Fi 모니터</h1>
+        <div class="sub"><span class="dot"></span>실시간 모니터링 중 · 5초 자동 갱신</div>
+    </div>
+    <div class="grid">
+        <div class="card wide">
+            <div class="icon">📶</div>
+            <div class="label">Wi-Fi 신호 세기</div>
+            <div class="value">
+                {rssi} <span class="unit">dBm</span>
+                <span style="font-size:0.6em; margin-left:8px; color:{qcolor};">{quality}</span>
+            </div>
+            <div class="bar-bg">
+                <div class="bar" style="width:{rssi_pct}%; background:{qcolor};"></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="icon">🌐</div>
+            <div class="label">IP 주소</div>
+            <div class="value" style="font-size:0.95em;">{my_ip}</div>
+        </div>
+        <div class="card">
+            <div class="icon">⏱️</div>
+            <div class="label">가동 시간</div>
+            <div class="value">{uptime}</div>
+        </div>
+        <div class="card">
+            <div class="icon">💾</div>
+            <div class="label">메모리 사용</div>
+            <div class="value">{mem_pct}%</div>
+            <div class="unit">{mem_free:,} bytes free</div>
+        </div>
+        <div class="card">
+            <div class="icon">👥</div>
+            <div class="label">접속 횟수</div>
+            <div class="value">{visit_count}</div>
+        </div>
+        <div class="card wide">
+            <div class="icon">📋</div>
+            <div class="label">주변 Wi-Fi 네트워크 (30초마다 갱신)</div>
+            <table class="ap-table">
+                <thead>
+                    <tr><th>이름</th><th>신호</th><th>채널</th><th>보안</th></tr>
+                </thead>
+                <tbody>{ap_rows}</tbody>
+            </table>
+        </div>
+    </div>
+    <div class="footer">
+        Powered by MicroPython on Pico 2 WH
+    </div>
+</body>
+</html>"""
+# ── 웹서버 시작 ─────────────────────────────
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server.bind(('0.0.0.0', 80))
+server.listen(2)
+print()
+print("=" * 45)
+print(f"  대시보드 시작! http://{my_ip}")
+print("=" * 45)
+while True:
+    try:
+        client, addr = server.accept()
+        request = client.recv(1024).decode()
+        if 'favicon' in request:
+            client.close()
+            continue
+        visit_count += 1
+        print(f"접속 #{visit_count}: {addr[0]}")
+        page = make_page()
+        client.send(b"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\n\r\n")
+        client.send(page.encode())
+        client.close()
+    except Exception as e:
+        print(f"에러: {e}")
+        try:
+            client.close()
+        except:
+            pass
+```
+
+---
+
+## 자동 갱신, 어떻게 되는 걸까?
+
+접속하면 **5초마다 페이지가 자동으로 바뀌는 것**을 볼 수 있어요. 이게 어떻게 가능한 걸까요?
+
+### 핵심 1: meta refresh 태그
+
+코드에서 이 한 줄을 찾아보세요.
+
+```html
+<meta http-equiv="refresh" content="5">
+```
+
+이 태그가 **브라우저에게 "5초마다 이 페이지를 다시 불러와!"라고 알려주는 것**입니다. JavaScript 없이 HTML만으로 자동 갱신이 가능해요.
+
+### 핵심 2: 서버사이드 렌더링
+
+<Aside type="tip" title="서버사이드 렌더링이란?">
+Pico(서버)가 매번 **최신 데이터를 HTML에 직접 넣어서** 완성된 페이지를 보내주는 방식이에요. 브라우저가 받는 건 이미 완성된 HTML이라서, 브라우저에서 추가 작업이 필요 없어요.
+</Aside>
+
+1차시에서는 데이터가 고정이었지만, 2차시에서는 `make_page()` 함수가 **호출될 때마다** RSSI를 새로 측정하고, f-string으로 HTML에 넣어서 보내줍니다.
+
+```python
+# 매번 최신 RSSI를 측정해서...
+rssi = wlan.status('rssi')
+# f-string으로 HTML에 직접 삽입!
+return f"""...<div class="value">{rssi} dBm</div>..."""
+```
+
+### 핵심 3: AP 스캔 캐싱
+
+주변 Wi-Fi를 스캔하는 건 **무거운 작업**이에요. 매번 하면 Pico가 느려지니까, **30초에 한 번만 스캔**하고 결과를 저장해두는 게 **캐싱**이에요.
+
+```python
+SCAN_INTERVAL = 30  # 30초마다만 스캔
+def get_ap_cached():
+    # 30초 안 지났으면 → 저장된 결과 재활용
+    # 30초 지났으면 → 새로 스캔
+```
+
+이렇게 하면 페이지는 5초마다 갱신되지만, AP 목록은 30초마다만 갱신되어서 효율적이에요.
+
+---
+
+## 코드 수정 포인트 맵
+
+바이브 코딩할 때 **어디를 수정하면 되는지** 한눈에 파악하세요.
+
+<div class="code-map">
+  <div class="map-row">
+    <div class="map-num n1">①</div>
+    <div class="map-content">
+      <div class="map-title">Wi-Fi 연결</div>
+      <div class="map-desc">건드릴 일 거의 없음</div>
+    </div>
+  </div>
+  <div class="map-row">
+    <div class="map-num n2">②</div>
+    <div class="map-content">
+      <div class="map-title">scan_ap() / get_ap_cached()</div>
+      <div class="map-desc">AP 스캔 방식이나 캐시 간격을 바꿀 때 수정</div>
+    </div>
+  </div>
+  <div class="map-row">
+    <div class="map-num n2">③</div>
+    <div class="map-content">
+      <div class="map-title">make_page() <span class="map-tag">바이브 코딩 주 영역</span></div>
+      <div class="map-desc">데이터 수집 + <code>&lt;style&gt;</code> CSS 디자인 + <code>&lt;body&gt;</code> HTML 구조</div>
+    </div>
+  </div>
+  <div class="map-row">
+    <div class="map-num n3">④</div>
+    <div class="map-content">
+      <div class="map-title">웹서버 루프</div>
+      <div class="map-desc">건드릴 일 거의 없음</div>
+    </div>
+  </div>
+</div>
+
+<Aside type="tip" title="AI에게 코드 보낼 때">
+코드가 길어서 부담스러우면 `make_page()` 함수 부분만 잘라서 AI에게 보내도 돼요. "이 함수는 MicroPython Pico 2 WH 웹서버의 HTML 생성 함수야"라고 한 줄 맥락만 추가하면 충분합니다.
+</Aside>
+
+---
+
+## 바이브 코딩 미션
+
+AI와 함께 대시보드를 확장해보세요. 쉬운 것부터 도전!
+
+<Tabs>
+  <TabItem label="프롬프트 작성법">
+    **자세한 프롬프트** — 결과를 정밀하게 통제하고 싶을 때
+
+    ```
+    "이 코드의 make_page()에서 RSSI에 따라
+     이모지를 추가해줘. -50 이상 😄, -60 이상 🙂,
+     -70 이상 😐, -80 이상 😟, 그 이하 😢.
+     신호 세기 카드에 큰 이모지로 표시."
+     [코드 붙여넣기]
+    ```
+
+    **간단한 프롬프트** — 익숙해지면 이것만으로도 충분
+
+    ```
+    "RSSI에 따라 이모지 표정 바뀌게 해줘"
+     [코드 붙여넣기]
+    ```
+  </TabItem>
+  <TabItem label="CSS 수정 팁">
+    이번 코드에서 CSS는 **`PAGE_CSS` 변수**에 따로 분리되어 있어요.
+
+    CSS를 수정할 때는 `PAGE_CSS` 안의 내용을 바꾸면 됩니다. 이 변수는 **일반 문자열**이라서 f-string의 중괄호 이스케이프(`{{`, `}}`) 걱정이 없어요!
+
+    반면 `make_page()` 함수의 HTML 부분은 **f-string**이라서 CSS의 `{`, `}` 를 쓸 때 `{{`, `}}`로 이중 이스케이프가 필요해요. AI에게 맡기면 알아서 처리해줍니다.
+  </TabItem>
+</Tabs>
+
+### 미션 카드
+
+<div class="mission-card">
+  <div class="mission-header">
+    <span class="mission-title">미션 1: RSSI 이모지 표정</span>
+    <span class="mission-difficulty">난이도 ★★☆☆☆</span>
+  </div>
+  <div class="mission-body">
+    <div class="mission-desc">신호 세기에 따라 이모지가 바뀌게! 강하면 😄, 보통이면 😐, 약하면 😢</div>
+    <div class="prompt-box prompt-full">
+      <p>"이 코드의 make_page()에서 RSSI에 따라 이모지를 추가해줘. -50 이상 😄, -60 이상 🙂, -70 이상 😐, -80 이상 😟, 그 이하 😢. 신호 세기 카드에 큰 이모지로 표시."</p>
+      <p>[코드 붙여넣기]</p>
+    </div>
+    <div class="prompt-box prompt-light">
+      <p>"RSSI에 따라 이모지 표정 바뀌게 해줘"</p>
+      <p>[코드 붙여넣기]</p>
+    </div>
+  </div>
+</div>
+
+<div class="mission-card">
+  <div class="mission-header">
+    <span class="mission-title">미션 2: 가동 시간 예쁘게</span>
+    <span class="mission-difficulty">난이도 ★★☆☆☆</span>
+  </div>
+  <div class="mission-body">
+    <div class="mission-desc">가동 시간이 "327초"보다 "5분 27초"가 보기 좋죠? 기본 코드에 이미 구현되어 있으니, 다른 형식으로 바꿔보세요.</div>
+    <div class="prompt-box prompt-full">
+      <p>"make_page()에서 가동 시간 표시를 '00:05:27' 같은 디지털 시계 형식으로 바꿔줘. 카드에 고정폭 폰트로 표시."</p>
+      <p>[코드 붙여넣기]</p>
+    </div>
+    <div class="prompt-box prompt-light">
+      <p>"가동 시간을 디지털 시계 형식으로 바꿔줘"</p>
+      <p>[코드 붙여넣기]</p>
+    </div>
+  </div>
+</div>
+
+<div class="mission-card">
+  <div class="mission-header">
+    <span class="mission-title">미션 3: 테마 커스터마이징</span>
+    <span class="mission-difficulty">난이도 ★★★☆☆</span>
+  </div>
+  <div class="mission-body">
+    <div class="mission-desc">나만의 색상 테마 + 레이아웃으로 대시보드를 꾸며보세요.</div>
+    <div class="prompt-box prompt-full">
+      <p>"이 대시보드의 CSS를 해양 테마로 바꿔줘. 배경은 깊은 바다색, 카드는 반투명 유리 효과, 강조색은 청록색, 그리드를 3열로 바꾸고 카드 모서리를 더 둥글게."</p>
+      <p>[make_page() 함수 붙여넣기]</p>
+    </div>
+    <div class="prompt-box prompt-light">
+      <p>"해양 테마 + 유리 효과로 CSS 바꿔줘"</p>
+      <p>[make_page() 함수 붙여넣기]</p>
+    </div>
+  </div>
+</div>
+
+<div class="mission-card">
+  <div class="mission-header">
+    <span class="mission-title">미션 4: RSSI 이력 그래프</span>
+    <span class="mission-difficulty">난이도 ★★★★☆</span>
+  </div>
+  <div class="mission-body">
+    <div class="mission-desc">최근 20개 RSSI 값을 꺾은선 그래프로 시각화!</div>
+    <div class="prompt-box prompt-full">
+      <p>"Pico 서버에서 최근 20개 RSSI 값을 배열에 저장하고, SVG로 꺾은선 그래프를 생성하여 HTML에 포함시켜줘. 그래프는 AP 목록 위에 wide 카드로 넣어줘."</p>
+      <p>[make_page() 함수 붙여넣기]</p>
+    </div>
+    <div class="prompt-box prompt-light">
+      <p>"RSSI 이력을 막대 그래프로 보여줘. 외부 라이브러리 없이."</p>
+      <p>[make_page() 함수 붙여넣기]</p>
+    </div>
+    <div class="prompt-tip">서버사이드 렌더링이라 JavaScript 없이 SVG나 HTML로 차트를 그리는 게 포인트!</div>
+  </div>
+</div>
+
+<div class="mission-card">
+  <div class="mission-header">
+    <span class="mission-title">보너스: 자유 확장</span>
+    <span class="mission-difficulty">난이도 ★★★★★</span>
+  </div>
+  <div class="mission-body">
+    <div class="mission-desc">간단한 프롬프트로 바로 도전! 자기 아이디어를 한 줄로 던져보세요.</div>
+    <div class="prompt-box prompt-light">
+      <p>"RSSI가 -75 이하로 떨어지면 경고 배너 띄워줘"</p>
+      <p>"AP 목록에서 검색/필터 기능 추가해줘"</p>
+      <p>"다크모드/라이트모드 토글 만들어줘"</p>
+      <p>"RSSI 최고/최저/평균 통계 카드 추가해줘"</p>
+      <p>"대시보드 상단에 실시간 시계 추가해줘"</p>
+    </div>
+  </div>
+</div>
+
+### 바이브 코딩 사이클
+
+미션 진행 순서를 기억하세요.
+
+<div class="flow-diagram">
+  <div class="flow-step">
+    <div class="flow-num">1</div>
+    <div class="flow-icon">💬</div>
+    <div class="flow-label">요청</div>
+    <div class="flow-desc">프롬프트 작성</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-num">2</div>
+    <div class="flow-icon">🤖</div>
+    <div class="flow-label">받기</div>
+    <div class="flow-desc">AI 응답 코드</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-num">3</div>
+    <div class="flow-icon">▶️</div>
+    <div class="flow-label">실행</div>
+    <div class="flow-desc">Thonny 실행</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-num">4</div>
+    <div class="flow-icon">🤔</div>
+    <div class="flow-label">판단</div>
+    <div class="flow-desc">원하는 결과?</div>
+  </div>
+  <div class="flow-arrow flow-return">↩️</div>
+</div>
+
+<div class="compare-summary">YES → 다음 미션! &nbsp;|&nbsp; NO → 프롬프트 수정해서 다시 요청!</div>
+
+<div class="class-scene">
+  <div class="scene-line"><span class="speaker speaker-student">수연:</span> "이모지 표정 미션 했는데 '이모지 표정 바뀌게 해줘'라고만 했거든요? 근데 AI가 make_page() 안에서 이모지 변수도 추가하고 HTML도 다 바꿔줬어요!"</div>
+  <div class="scene-line"><span class="speaker speaker-student">지호:</span> "RSSI 그래프 하는 중인데, 처음에 '그래프 그려줘'라고만 했더니 JavaScript Chart.js를 쓰라고 하더라고요. '외부 라이브러리 없이 HTML/CSS만으로'를 추가했더니 인라인 SVG로 그려줬어요!"</div>
+  <div class="scene-line"><span class="speaker speaker-student">민수:</span> "경고 배너 미션 했는데, Pico를 손으로 감싸서 안테나를 가렸더니 신호가 약해지면서 배너가 떴어요!"</div>
+</div>
+
+---
+
+## 핵심 용어
+
+<div class="key-terms">
+  <dl>
+    <dt>서버사이드 렌더링</dt>
+    <dd>서버(Pico)가 데이터를 HTML에 직접 넣어 완성된 페이지를 보내는 방식</dd>
+    <dt>f-string</dt>
+    <dd>Python 문자열 안에 변수 값을 넣는 기능 (예: f"신호: &#123;rssi&#125;dBm")</dd>
+    <dt>meta refresh</dt>
+    <dd>HTML 태그로 페이지를 일정 시간마다 자동 새로고침하는 기법</dd>
+    <dt>캐싱</dt>
+    <dd>무거운 작업의 결과를 저장해두고 재활용하는 성능 최적화 기법</dd>
+    <dt>AP 스캔</dt>
+    <dd>주변 Wi-Fi 네트워크를 탐색하는 것</dd>
+    <dt>gc.collect()</dt>
+    <dd>메모리 회수 — Pico처럼 메모리가 작은 장치에서 필수</dd>
+  </dl>
+</div>
+
+---
+
+## 다음 시간 예고
+
+다음 시간에는 이 데이터를 **차트와 그래프**로 시각화할 거예요. 오늘 미션 4를 미리 해본 사람은 더 멋진 시각화에 도전할 수 있을 거예요.
+
+---
+
+## 자기 점검
+
+<div class="self-check">
+  <h4>오늘 체크리스트</h4>
+  <ul>
+    <li>대시보드가 5초마다 자동 갱신되는 것을 확인했다</li>
+    <li>주변 Wi-Fi 네트워크 목록이 표시되는 것을 확인했다</li>
+    <li>meta refresh 태그가 자동 갱신의 핵심임을 이해했다</li>
+    <li>서버사이드 렌더링이 무엇인지 한 문장으로 말할 수 있다</li>
+    <li>캐싱이 왜 필요한지 설명할 수 있다</li>
+    <li>바이브 코딩 미션을 1개 이상 완료했다</li>
+  </ul>
+</div>

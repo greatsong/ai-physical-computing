@@ -62,6 +62,17 @@ export default defineConfig({
           ],
         },
         {
+          label: '프로젝트: Wi-Fi 모니터',
+          items: [
+            { label: '1차시: 첫 웹서버', slug: 'projects/wifi-monitor/w01' },
+            { label: '2차시: 실시간 대시보드', slug: 'projects/wifi-monitor/w02' },
+            { label: '3차시: 차트 시각화', slug: 'projects/wifi-monitor/w03' },
+            { label: '4차시: 신호 지도', slug: 'projects/wifi-monitor/w04' },
+            { label: '5차시: 나만의 기능', slug: 'projects/wifi-monitor/w05' },
+            { label: '6차시: 완성과 발표', slug: 'projects/wifi-monitor/w06' },
+          ],
+        },
+        {
           label: '코스 B: 프로젝트',
           items: [
             { label: '코스 B 소개', slug: 'course-b/intro' },

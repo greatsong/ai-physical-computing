@@ -1,0 +1,573 @@
+---
+title: "4차시: 교실 Wi-Fi 신호 지도"
+description: "위치별 RSSI 측정 → 격자 히트맵 시각화 — 모둠 활동으로 교실 신호 지도 만들기"
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+{/* 프로젝트 진행 바 */}
+<div class="project-progress">
+  <div class="prog-item prog-1 done">1. 첫 웹서버</div>
+  <div class="prog-item prog-2 done">2. 실시간 대시보드</div>
+  <div class="prog-item prog-3 done">3. 차트 시각화</div>
+  <div class="prog-item prog-4 current">4. 신호 지도</div>
+  <div class="prog-item prog-5">5. 나만의 기능</div>
+  <div class="prog-item prog-6">6. 발표</div>
+</div>
+
+{/* 결과물 미리보기 */}
+<div class="outcome-preview">
+  <div class="outcome-badge">이 차시가 끝나면</div>
+  <h4>교실 Wi-Fi 신호 지도가 완성됩니다</h4>
+  <p>교실을 격자로 나누고, Pico를 들고 다니며 위치별 RSSI를 측정합니다. 수집한 데이터를 <strong>히트맵</strong>으로 시각화하여, 공유기 위치와 사각지대를 한눈에 파악할 수 있습니다.</p>
+  <div class="outcome-items">
+    <div class="outcome-item">
+      <div class="item-icon">🗺️</div>
+      <div class="item-label">격자 측정</div>
+      교실을 5x4 격자로 나눠 측정
+    </div>
+    <div class="outcome-item">
+      <div class="item-icon">📱</div>
+      <div class="item-label">측정 도우미</div>
+      스마트폰에서 위치 선택 & 저장
+    </div>
+    <div class="outcome-item">
+      <div class="item-icon">🌈</div>
+      <div class="item-label">히트맵</div>
+      색상으로 신호 강도 시각화
+    </div>
+    <div class="outcome-item">
+      <div class="item-icon">🔍</div>
+      <div class="item-label">데이터 분석</div>
+      사각지대 발견 & 해석
+    </div>
+  </div>
+</div>
+
+> **오늘의 질문:** "교실 어디에서 Wi-Fi가 가장 잘 터질까?"
+
+<p style="color: var(--sl-color-gray-3);">
+50분 | 모둠 활동 (4~5인) | 난이도 ●●●●○
+</p>
+
+---
+
+## 준비물
+
+| 준비물 | 설명 |
+|--------|------|
+| Raspberry Pi Pico 2 WH | Wi-Fi 기능이 있는 마이크로컨트롤러. 모둠당 1대 |
+| Micro USB **데이터** 케이블 | Pico에 전원 공급 + 코드 전송 |
+| 스마트폰 | 측정 도우미 페이지 접속용 (같은 Wi-Fi) |
+| 교실 격자 배치도 인쇄물 | 백업 기록용 (모둠당 1장) |
+| 필기도구 | 인쇄물에 RSSI 값 기록 |
+
+---
+
+## 완성하면 이런 모습!
+
+아래는 20개 지점을 모두 측정한 뒤 만들어지는 히트맵 예시입니다. 초록색은 신호가 강하고, 주황~빨간색은 약한 곳이에요.
+
+{/* 가상 히트맵 샘플 */}
+<div style="max-width:420px;margin:16px auto;background:#0f0f23;border-radius:12px;padding:16px;border:1px solid #2a2a5e;">
+  <div style="text-align:center;margin-bottom:8px;">
+    <div style="color:#00d4ff;font-weight:bold;font-size:1.1em;">교실 Wi-Fi 신호 지도 (예시)</div>
+    <div style="color:#888;font-size:0.75em;">측정: 20/20개 지점</div>
+  </div>
+  <div style="color:#555;font-size:0.7em;text-align:center;margin-bottom:4px;">▲ 칠판 쪽</div>
+  <div style="display:grid;grid-template-columns:20px repeat(5,1fr);gap:3px;font-size:0.75em;text-align:center;">
+    <div></div>
+    <div style="color:#888;padding:2px 0;">1</div>
+    <div style="color:#888;padding:2px 0;">2</div>
+    <div style="color:#888;padding:2px 0;">3</div>
+    <div style="color:#888;padding:2px 0;">4</div>
+    <div style="color:#888;padding:2px 0;">5</div>
+    <div style="color:#888;display:flex;align-items:center;justify-content:center;">A</div>
+    <div style="background:hsl(31,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">A1<br/>-78</div>
+    <div style="background:hsl(44,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">A2<br/>-71</div>
+    <div style="background:hsl(59,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">A3<br/>-63</div>
+    <div style="background:hsl(68,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">A4<br/>-58</div>
+    <div style="background:hsl(51,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">A5<br/>-67</div>
+    <div style="color:#888;display:flex;align-items:center;justify-content:center;">B</div>
+    <div style="background:hsl(40,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">B1<br/>-73</div>
+    <div style="background:hsl(57,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">B2<br/>-64</div>
+    <div style="background:hsl(73,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">B3<br/>-55</div>
+    <div style="background:hsl(86,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">B4<br/>-48</div>
+    <div style="background:hsl(77,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">B5<br/>-53</div>
+    <div style="color:#888;display:flex;align-items:center;justify-content:center;">C</div>
+    <div style="background:hsl(48,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">C1<br/>-69</div>
+    <div style="background:hsl(64,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">C2<br/>-60</div>
+    <div style="background:hsl(83,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">C3<br/>-50</div>
+    <div style="background:hsl(97,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">📡C4<br/>-42</div>
+    <div style="background:hsl(88,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">C5<br/>-47</div>
+    <div style="color:#888;display:flex;align-items:center;justify-content:center;">D</div>
+    <div style="background:hsl(35,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">D1<br/>-76</div>
+    <div style="background:hsl(53,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">D2<br/>-66</div>
+    <div style="background:hsl(70,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">D3<br/>-57</div>
+    <div style="background:hsl(90,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">D4<br/>-46</div>
+    <div style="background:hsl(81,85%,60%);border-radius:6px;padding:8px 2px;color:#000;font-weight:bold;">D5<br/>-51</div>
+  </div>
+  <div style="color:#555;font-size:0.7em;text-align:center;margin-top:4px;">▼ 뒷문 쪽</div>
+  <div style="height:12px;border-radius:6px;background:linear-gradient(to right,hsl(0,85%,60%),hsl(60,85%,60%),hsl(120,85%,60%));margin-top:8px;"></div>
+  <div style="display:flex;justify-content:space-between;font-size:0.7em;color:#888;margin-top:2px;">
+    <span>약함 (-95)</span><span>보통 (-60)</span><span>강함 (-30)</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;font-size:0.78em;">
+    <div style="background:#1a3a1a;padding:8px;border-radius:8px;text-align:center;">
+      <div style="color:#888;font-size:0.8em;">최강 신호</div>
+      <div style="color:#51cf66;font-weight:bold;">📡 C4</div>
+      <div style="color:#51cf66;">-42 dBm</div>
+    </div>
+    <div style="background:#3a1a1a;padding:8px;border-radius:8px;text-align:center;">
+      <div style="color:#888;font-size:0.8em;">최약 신호</div>
+      <div style="color:#ff6b6b;font-weight:bold;">A1</div>
+      <div style="color:#ff6b6b;">-78 dBm</div>
+    </div>
+    <div style="background:#1a1a3e;padding:8px;border-radius:8px;text-align:center;">
+      <div style="color:#888;font-size:0.8em;">사각지대</div>
+      <div style="color:#ffd43b;font-weight:bold;">2개</div>
+      <div style="color:#888;font-size:0.8em;">(-75 미만)</div>
+    </div>
+  </div>
+</div>
+
+### 숫자 표 vs 히트맵
+
+<div class="compare-cards">
+  <div class="compare-card">
+    <strong>숫자 표</strong><br/>
+    A1: -78, A2: -71, A3: -63...
+    <div style="color: #888; margin-top: 8px;">위치별 관계 파악이 어려움</div>
+  </div>
+  <div class="compare-card">
+    <strong>히트맵</strong><br/>
+    색상으로 신호 강도 표시
+    <div style="color: #888; margin-top: 8px;">사각지대와 공유기 위치가 한눈에!</div>
+  </div>
+</div>
+
+같은 데이터라도 **표현 방식**에 따라 이해도가 완전히 달라집니다. 히트맵은 데이터를 색상으로 바꿔서 패턴을 한눈에 보여주는 강력한 시각화 방법이에요.
+
+---
+
+## 코드 업로드
+
+1차시의 `wifi_config.py`는 그대로 두고, `main.py`만 아래 코드로 교체합니다.
+
+<Aside type="tip" title="복사 & 붙여넣기">
+아래 코드 블록 오른쪽 위의 복사 버튼으로 전체 코드를 복사하세요. Thonny에서 Ctrl+A → Ctrl+V → Ctrl+S → 실행.
+</Aside>
+
+<div class="code-file-label">main.py — Pico에 저장 (3차시 코드 덮어쓰기)</div>
+
+```python collapse={10-191}
+# ============================================
+# 교실 Wi-Fi 모니터 - 4차시
+# 교실 Wi-Fi 신호 지도 (격자 측정 + SVG 히트맵)
+# ============================================
+import network
+import socket
+import time
+import gc
+from wifi_config import WIFI_SSID, WIFI_PASSWORD
+
+# ── Wi-Fi 연결 ──────────────────────────────
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+print("Wi-Fi 연결 중...")
+wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+wait = 0
+while not wlan.isconnected():
+    time.sleep(1)
+    wait += 1
+    if wait > 15:
+        print("연결 실패!")
+        raise SystemExit
+my_ip = wlan.ifconfig()[0]
+print(f"연결 완료! IP: {my_ip}")
+
+# ── 격자 설정 ───────────────────────────────
+ROWS = 4
+COLS = 5
+LABELS = "ABCD"
+grid = {}  # {"A1": -62, "B3": -71, ...}
+
+# ── RSSI → 색상 변환 ────────────────────────
+def rssi_color(v):
+    v = max(-95, min(-30, v))
+    hue = max(0, min(120, ((v + 95) * 120) // 65))
+    return f"hsl({hue},85%,60%)"
+
+# ── 측정 페이지 ──────────────────────────────
+def page_measure(msg=""):
+    gc.collect()
+    rssi = wlan.status('rssi')
+    filled = len(grid)
+    total = ROWS * COLS
+    sty = "display:flex;flex-direction:column;align-items:center;justify-content:center;height:60px;border-radius:12px;text-decoration:none;font-size:0.9em;"
+    cells = ""
+    for r in range(ROWS):
+        for c in range(COLS):
+            pos = f"{LABELS[r]}{c+1}"
+            if pos in grid:
+                val = grid[pos]
+                bg = rssi_color(val)
+                cells += f'<a href="/s?p={pos}" style="{sty}background:{bg};color:#000;font-weight:bold;">{pos}<br>{val}</a>'
+            else:
+                cells += f'<a href="/s?p={pos}" style="{sty}background:#1a1a3e;color:#888;border:2px dashed #444;">{pos}</a>'
+    alert = ""
+    if msg:
+        alert = f'<div style="background:#1a3a1a;color:#51cf66;padding:10px;border-radius:8px;margin-bottom:12px;text-align:center;">{msg}</div>'
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>측정 도우미</title></head>
+<body style="font-family:-apple-system,sans-serif;background:#0f0f23;color:#ccc;padding:16px;margin:0;">
+<div style="text-align:center;margin-bottom:16px;">
+<h2 style="color:#00d4ff;margin:0;">측정 도우미</h2>
+<p style="color:#888;font-size:0.85em;">현재 RSSI: <strong style="color:#ffd43b;">{rssi} dBm</strong> | 측정: {filled}/{total}</p></div>
+{alert}
+<div style="display:grid;grid-template-columns:repeat({COLS},1fr);gap:8px;max-width:400px;margin:0 auto;">
+{cells}</div>
+<div style="text-align:center;margin-top:16px;">
+<a href="/map" style="color:#00d4ff;margin-right:16px;">히트맵 보기</a>
+<a href="/reset" style="color:#ff6b6b;">초기화</a>
+</div></body></html>"""
+
+# ── 히트맵 페이지 ────────────────────────────
+def page_map():
+    gc.collect()
+    if not grid:
+        return """<!DOCTYPE html><html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>히트맵</title></head><body style="font-family:-apple-system,sans-serif;background:#0f0f23;color:#ccc;padding:16px;text-align:center;">
+<h2 style="color:#00d4ff;">히트맵</h2>
+<p>측정 데이터가 없습니다.</p>
+<a href="/measure" style="color:#00d4ff;">측정하러 가기</a>
+</body></html>"""
+    vals = list(grid.values())
+    best = max(vals)
+    worst = min(vals)
+    avg = sum(vals) // len(vals)
+    dead = sum(1 for v in vals if v < -75)
+    bp = [k for k, v in grid.items() if v == best][0]
+    wp = [k for k, v in grid.items() if v == worst][0]
+    cw, ch, pad = 70, 60, 30
+    sw = COLS * cw + pad
+    sh = ROWS * ch + pad
+    svg = f'<svg viewBox="0 0 {sw} {sh}" style="max-width:400px;width:100%;">'
+    for c in range(COLS):
+        x = pad + c * cw + cw // 2
+        svg += f'<text x="{x}" y="18" text-anchor="middle" fill="#888" font-size="14">{c+1}</text>'
+    for r in range(ROWS):
+        y = pad + r * ch
+        svg += f'<text x="14" y="{y + ch // 2 + 5}" text-anchor="middle" fill="#888" font-size="14">{LABELS[r]}</text>'
+        for c in range(COLS):
+            x = pad + c * cw
+            pos = f"{LABELS[r]}{c+1}"
+            if pos in grid:
+                val = grid[pos]
+                color = rssi_color(val)
+                svg += f'<rect x="{x}" y="{y}" width="{cw-2}" height="{ch-2}" rx="6" fill="{color}" opacity="0.85"/>'
+                svg += f'<text x="{x+cw//2}" y="{y+ch//2-6}" text-anchor="middle" fill="#000" font-size="11" font-weight="bold">{pos}</text>'
+                svg += f'<text x="{x+cw//2}" y="{y+ch//2+10}" text-anchor="middle" fill="#000" font-size="13" font-weight="bold">{val}</text>'
+                if val == best:
+                    svg += f'<rect x="{x}" y="{y}" width="{cw-2}" height="{ch-2}" rx="6" fill="none" stroke="#fff" stroke-width="2"/>'
+            else:
+                svg += f'<rect x="{x}" y="{y}" width="{cw-2}" height="{ch-2}" rx="6" fill="#1a1a3e" stroke="#333" stroke-dasharray="4"/>'
+                svg += f'<text x="{x+cw//2}" y="{y+ch//2+4}" text-anchor="middle" fill="#555" font-size="11">{pos}</text>'
+    svg += '</svg>'
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Wi-Fi 신호 지도</title></head>
+<body style="font-family:-apple-system,sans-serif;background:#0f0f23;color:#ccc;padding:16px;margin:0;">
+<div style="text-align:center;margin-bottom:16px;">
+<h2 style="color:#00d4ff;margin:0 0 4px;">교실 Wi-Fi 신호 지도</h2>
+<p style="color:#888;font-size:0.85em;">측정: {len(grid)}/{ROWS*COLS}개 지점</p></div>
+<div style="text-align:center;">{svg}</div>
+<div style="max-width:400px;margin:12px auto;height:16px;border-radius:8px;background:linear-gradient(to right,hsl(0,85%,60%),hsl(60,85%,60%),hsl(120,85%,60%));"></div>
+<div style="display:flex;justify-content:space-between;max-width:400px;margin:0 auto 16px;font-size:0.75em;color:#888;">
+<span>약함 (-95)</span><span>보통 (-60)</span><span>강함 (-30)</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:400px;margin:0 auto;">
+<div style="background:#1a3a1a;padding:10px;border-radius:8px;text-align:center;">
+<div style="color:#888;font-size:0.75em;">최강 신호</div>
+<div style="color:#51cf66;font-size:1.2em;font-weight:bold;">{best} dBm</div>
+<div style="color:#888;font-size:0.8em;">📡 {bp}</div></div>
+<div style="background:#3a1a1a;padding:10px;border-radius:8px;text-align:center;">
+<div style="color:#888;font-size:0.75em;">최약 신호</div>
+<div style="color:#ff6b6b;font-size:1.2em;font-weight:bold;">{worst} dBm</div>
+<div style="color:#888;font-size:0.8em;">{wp}</div></div>
+<div style="background:#1a1a3e;padding:10px;border-radius:8px;text-align:center;">
+<div style="color:#888;font-size:0.75em;">평균 RSSI</div>
+<div style="color:#ffd43b;font-size:1.2em;font-weight:bold;">{avg} dBm</div></div>
+<div style="background:#1a1a3e;padding:10px;border-radius:8px;text-align:center;">
+<div style="color:#888;font-size:0.75em;">사각지대</div>
+<div style="color:#ff6b6b;font-size:1.2em;font-weight:bold;">{dead}개</div>
+<div style="color:#888;font-size:0.75em;">(-75dBm 미만)</div></div></div>
+<div style="text-align:center;margin-top:16px;">
+<a href="/measure" style="color:#00d4ff;margin-right:16px;">측정하기</a>
+<a href="/reset" style="color:#ff6b6b;">초기화</a></div></body></html>"""
+
+# ── 웹서버 ───────────────────────────────────
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server.bind(('0.0.0.0', 80))
+server.listen(2)
+print()
+print("=" * 45)
+print(f"  신호 지도 시작!")
+print(f"  측정: http://{my_ip}/measure")
+print(f"  지도: http://{my_ip}/map")
+print("=" * 45)
+
+while True:
+    try:
+        client, addr = server.accept()
+        request = client.recv(1024).decode()
+        if 'favicon' in request:
+            client.close()
+            continue
+        path = request.split(' ')[1] if ' ' in request else '/'
+        if path.startswith('/s?p='):
+            pos = path[5:7].upper()
+            rssi = wlan.status('rssi')
+            grid[pos] = rssi
+            print(f"저장: {pos} = {rssi} dBm")
+            page = page_measure(f"{pos} = {rssi} dBm 저장!")
+        elif path == '/map':
+            page = page_map()
+        elif path == '/reset':
+            grid.clear()
+            print("데이터 초기화!")
+            page = page_measure("데이터 초기화 완료")
+        else:
+            page = page_measure()
+        client.send(b"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\n\r\n")
+        client.send(page.encode())
+        client.close()
+    except Exception as e:
+        print(f"에러: {e}")
+        try:
+            client.close()
+        except:
+            pass
+```
+
+실행하면 Thonny 콘솔에 IP 주소가 나옵니다. 스마트폰에서 `http://[IP주소]/measure`로 접속해서 5x4 격자가 보이면 성공!
+
+---
+
+## 교실 격자 배치도
+
+교실을 5열 x 4행으로 나눠서, 각 칸에 이름을 붙입니다. A행이 칠판 쪽, D행이 뒷문 쪽이에요.
+
+<div class="code-map">
+  <div class="map-row">
+    <div class="map-num n1">앞</div>
+    <div class="map-content">
+      <div class="map-title">1행: A1 — A2 — A3 — A4 — A5</div>
+      <div class="map-desc">[칠판 / 스크린] 쪽</div>
+    </div>
+  </div>
+  <div class="map-row">
+    <div class="map-num n2">중</div>
+    <div class="map-content">
+      <div class="map-title">2행: B1 — B2 — B3 — B4 — B5</div>
+      <div class="map-desc">3행: C1 — C2 — C3 — C4 — C5</div>
+    </div>
+  </div>
+  <div class="map-row">
+    <div class="map-num n3">뒤</div>
+    <div class="map-content">
+      <div class="map-title">4행: D1 — D2 — D3 — D4 — D5</div>
+      <div class="map-desc">[뒷문] 쪽 — 공유기 위치: C4 근처</div>
+    </div>
+  </div>
+</div>
+
+<Aside type="tip" title="격자 커스터마이징">
+교실 크기에 따라 3x3, 4x4 등으로 조정할 수 있습니다. 시간이 부족하면 격자를 줄이세요. 코드의 `ROWS`, `COLS` 값만 변경하면 됩니다.
+</Aside>
+
+---
+
+## 모둠 역할
+
+4~5명이 한 모둠을 이루어 측정합니다. 역할을 나누면 훨씬 효율적이에요.
+
+- **Pico 운반자** — Pico를 가슴 높이로 들고 측정 위치로 이동
+- **스마트폰 기록자** — 측정 도우미 페이지에서 위치 선택 & 저장
+- **배치도 기록자** — 인쇄물에 RSSI 값을 백업 기록
+- **이동 안내자** — 다음 측정 위치를 안내하고 동선 관리
+
+---
+
+## 측정 순서
+
+<div class="flow-diagram">
+  <div class="flow-step">
+    <div class="flow-num">1</div>
+    <div class="flow-icon">📱</div>
+    <div class="flow-label">접속</div>
+    <div class="flow-desc">/measure 페이지</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-num">2</div>
+    <div class="flow-icon">📍</div>
+    <div class="flow-label">위치 선택</div>
+    <div class="flow-desc">예: B3</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-num">3</div>
+    <div class="flow-icon">🚶</div>
+    <div class="flow-label">이동</div>
+    <div class="flow-desc">해당 위치로</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-num">4</div>
+    <div class="flow-icon">📶</div>
+    <div class="flow-label">측정</div>
+    <div class="flow-desc">3초 대기 후 클릭</div>
+  </div>
+  <div class="flow-arrow flow-return">↩️</div>
+</div>
+
+<div class="compare-summary">다음 위치로 이동하여 반복!</div>
+
+<Aside type="caution" title="측정 팁">
+- 같은 위치에서 RSSI가 ±5dBm 정도 변동하는 것은 정상입니다
+- Pico를 가슴 높이로 들고, 3초 이상 정지한 후에 측정하세요
+- 극단적 이상값(-10 또는 -99)이 나오면 재측정하세요
+</Aside>
+
+---
+
+## 서버에 추가된 기능
+
+이번 차시 코드에는 세 가지 페이지가 들어 있습니다.
+
+<div class="code-map">
+  <div class="map-row">
+    <div class="map-num n1">①</div>
+    <div class="map-content">
+      <div class="map-title"><code>/measure</code> — 측정 도우미 페이지</div>
+      <div class="map-desc">5x4 격자 버튼, 위치 클릭 → 현재 RSSI 자동 저장</div>
+    </div>
+  </div>
+  <div class="map-row">
+    <div class="map-num n2">②</div>
+    <div class="map-content">
+      <div class="map-title"><code>/map</code> — SVG 히트맵 페이지</div>
+      <div class="map-desc">초록→노랑→빨강 그라데이션 + 통계 카드</div>
+    </div>
+  </div>
+  <div class="map-row">
+    <div class="map-num n3">③</div>
+    <div class="map-content">
+      <div class="map-title"><code>/reset</code> — 데이터 초기화</div>
+      <div class="map-desc">모든 측정 데이터 삭제, 처음부터 재측정</div>
+    </div>
+  </div>
+</div>
+
+---
+
+## 미션 카드
+
+기본 히트맵이 만들어졌다면, AI(Claude, ChatGPT 등)에게 코드를 보여주고 기능을 확장해보세요!
+
+<div class="mission-card">
+  <div class="mission-header">
+    <span class="mission-title">미션 1: 히트맵 색상 개선</span>
+    <span class="mission-difficulty">난이도 ★★☆☆☆</span>
+  </div>
+  <div class="mission-body">
+    <div class="prompt-box prompt-light">
+      <p>"히트맵 색상을 빨강 → 노랑 → 초록 그라데이션으로 바꿔줘. 각 칸에 RSSI 숫자도 표시해줘."</p>
+      <p>[히트맵 HTML 코드 붙여넣기]</p>
+    </div>
+  </div>
+</div>
+
+<div class="mission-card">
+  <div class="mission-header">
+    <span class="mission-title">미션 2: 공유기 위치 표시</span>
+    <span class="mission-difficulty">난이도 ★★★☆☆</span>
+  </div>
+  <div class="mission-body">
+    <div class="prompt-box prompt-light">
+      <p>"히트맵에서 신호가 가장 강한 위치에 공유기 아이콘을 자동으로 표시해줘."</p>
+      <p>[히트맵 JavaScript 붙여넣기]</p>
+    </div>
+  </div>
+</div>
+
+<div class="mission-card">
+  <div class="mission-header">
+    <span class="mission-title">미션 3: 사각지대 경고</span>
+    <span class="mission-difficulty">난이도 ★★★☆☆</span>
+  </div>
+  <div class="mission-body">
+    <div class="prompt-box prompt-light">
+      <p>"RSSI가 -75보다 약한 구역을 '사각지대'로 표시하고, 몇 개인지 요약해줘."</p>
+      <p>[히트맵 코드 붙여넣기]</p>
+    </div>
+  </div>
+</div>
+
+<div class="mission-card">
+  <div class="mission-header">
+    <span class="mission-title">보너스: 3D 히트맵 도전</span>
+    <span class="mission-difficulty">난이도 ★★★★★</span>
+  </div>
+  <div class="mission-body">
+    <div class="prompt-box prompt-light">
+      <p>"히트맵을 3D로 보여줘. 신호가 강한 곳은 높이가 높게, 약한 곳은 낮게. CSS 3D transform 또는 등고선 스타일로."</p>
+      <p>[히트맵 코드 붙여넣기]</p>
+    </div>
+  </div>
+</div>
+
+---
+
+## 신호 지도 해석 토론
+
+히트맵을 완성했다면, 모둠에서 아래 질문을 함께 이야기해보세요.
+
+- 교실에서 Wi-Fi 신호가 **가장 강한 곳**과 **가장 약한 곳**은 어디인가요? 왜 그럴까요?
+- **사각지대**가 발견되었나요? 그 위치에 어떤 장애물이 있나요?
+- 공유기를 **다른 위치**에 놓으면 사각지대가 줄어들까요?
+- 금속 선반, 콘크리트 벽 등 **장애물**이 신호에 어떤 영향을 주나요?
+
+---
+
+## 핵심 용어
+
+<div class="key-terms">
+  <dl>
+    <dt>히트맵</dt>
+    <dd>데이터 값을 색상 강도로 표현하는 시각화 방법. 초록=강함, 빨강=약함으로 패턴을 한눈에 보여줍니다.</dd>
+    <dt>사각지대</dt>
+    <dd>Wi-Fi 신호가 도달하지 않거나 매우 약한 구역. 이 프로젝트에서는 RSSI가 -75dBm 미만인 곳을 말합니다.</dd>
+    <dt>격자 측정</dt>
+    <dd>공간을 규칙적인 칸(격자)으로 나누어 체계적으로 데이터를 수집하는 방법. 실제 네트워크 엔지니어도 이 방식을 사용합니다.</dd>
+    <dt>RSSI 변동</dt>
+    <dd>같은 위치에서 측정해도 RSSI 값이 ±5dBm 정도 달라지는 현상. Wi-Fi 신호의 자연스러운 특성입니다.</dd>
+  </dl>
+</div>
+
+---
+
+## 자기 점검
+
+오늘 활동을 돌아보며 체크해보세요.
+
+- [ ] 교실을 격자로 나누고 위치별 RSSI를 측정했다
+- [ ] 측정한 데이터가 히트맵으로 시각화되었다
+- [ ] 히트맵에서 신호가 강한 곳과 약한 곳을 구분할 수 있다
+- [ ] 사각지대가 생기는 이유를 설명할 수 있다
+- [ ] 미션 카드 중 1개 이상 도전했다

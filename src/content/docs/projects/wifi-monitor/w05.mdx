@@ -1,0 +1,246 @@
+---
+title: "5차시: 나만의 기능 추가"
+description: "자유 확장 — AI와 대화하며 원하는 기능을 직접 정의하고 구현하는 자기주도 바이브 코딩"
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+{/* 프로젝트 진행 바 */}
+<div class="project-progress">
+  <div class="prog-item prog-1 done">1. 첫 웹서버</div>
+  <div class="prog-item prog-2 done">2. 실시간 대시보드</div>
+  <div class="prog-item prog-3 done">3. 차트 시각화</div>
+  <div class="prog-item prog-4 done">4. 신호 지도</div>
+  <div class="prog-item prog-5 current">5. 나만의 기능</div>
+  <div class="prog-item prog-6">6. 발표</div>
+</div>
+
+{/* 결과물 미리보기 */}
+<div class="outcome-preview">
+  <div class="outcome-badge">이 차시가 끝나면</div>
+  <h4>나만의 대시보드가 완성됩니다</h4>
+  <p>이번 차시에는 교사 제공 기본 코드가 <strong>없습니다</strong>. 여러분이 지금까지 만든 코드를 기반으로 원하는 기능을 직접 추가하세요. <strong>"뭘 만들지 결정하는 것"이 코딩보다 중요한 시간</strong>입니다.</p>
+  <div class="outcome-items">
+    <div class="outcome-item">
+      <div class="item-icon">💡</div>
+      <div class="item-label">기능 기획</div>
+      만들고 싶은 기능 정의
+    </div>
+    <div class="outcome-item">
+      <div class="item-icon">🛠️</div>
+      <div class="item-label">자유 개발</div>
+      AI와 바이브 코딩으로 구현
+    </div>
+    <div class="outcome-item">
+      <div class="item-icon">👀</div>
+      <div class="item-label">갤러리 워크</div>
+      친구 작품 체험 & 피드백
+    </div>
+    <div class="outcome-item">
+      <div class="item-icon">🎤</div>
+      <div class="item-label">발표 준비</div>
+      내일 발표할 내용 정리
+    </div>
+  </div>
+</div>
+
+> **오늘의 질문:** "내가 만들고 싶은 기능을 AI에게 어떻게 설명할까?"
+
+<p style="color: var(--sl-color-gray-3);">
+50분 | 개인 또는 2인 1조 | 난이도 자유
+</p>
+
+---
+
+## 준비물
+
+| 준비물 | 설명 |
+|--------|------|
+| Raspberry Pi Pico 2 WH | 이전 차시까지 만든 코드가 저장된 Pico |
+| Micro USB **데이터** 케이블 | Pico를 PC에 연결 |
+| 스마트폰 | 대시보드 확인용 |
+| Thonny IDE | 코드 편집 및 업로드 |
+| AI 챗봇 | Claude, ChatGPT 등 |
+
+---
+
+## 1단계: 아이디어 브레인스토밍
+
+먼저 5분 동안 아이디어를 떠올려보세요. "우리 학교에 실제로 설치한다면 어떤 기능이 있으면 좋을까?" 생각해보세요.
+
+아래 씨앗 카드에서 영감을 얻어도 좋고, 자기만의 아이디어를 써도 좋습니다.
+
+### 아이디어 씨앗 카드
+
+<Tabs>
+  <TabItem label="실용 기능">
+    <div class="mission-card">
+      <div class="mission-body">
+        <div class="mission-desc">
+          <ul>
+            <li>신호 약할 때 "자리 옮기세요" 알림</li>
+            <li>시간대별 신호 품질 기록 (언제 가장 좋은지)</li>
+            <li>특정 RSSI 이하로 떨어지면 경고음</li>
+            <li>접속 중인 기기 수 추정 (AP 목록 기반)</li>
+            <li>측정 데이터 CSV 다운로드 기능</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </TabItem>
+  <TabItem label="시각적 기능">
+    <div class="mission-card">
+      <div class="mission-body">
+        <div class="mission-desc">
+          <ul>
+            <li>전체 테마를 나만의 스타일로 (게임, 우주, 자연...)</li>
+            <li>신호 품질을 캐릭터/표정으로 표현</li>
+            <li>RSSI를 음파/파동 애니메이션으로</li>
+            <li>히트맵을 3D 지형으로 표현</li>
+            <li>다크/라이트 모드 전환</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </TabItem>
+  <TabItem label="소셜 & 분석">
+    <div class="mission-card">
+      <div class="mission-body">
+        <div class="mission-desc">
+          <ul>
+            <li>방문자 이름 입력 + 방명록</li>
+            <li>"지금 Wi-Fi 상태" 공유 문구 생성</li>
+            <li>교실 Wi-Fi 점수 (100점 만점)</li>
+            <li>RSSI 변화 추세 분석 ("좋아지는 중 / 나빠지는 중")</li>
+            <li>채널 혼잡도 점수 + 추천</li>
+            <li>일정 시간 동안 안정성 분석 (변동폭)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </TabItem>
+</Tabs>
+
+---
+
+## 2단계: 기능 정의서 작성
+
+씨앗 카드에서 골라도 되고, 자기 아이디어를 써도 됩니다. 1~3개의 기능을 정해서 기능 정의서를 작성하세요.
+
+1. **추가할 기능 1** (필수): 한 줄 설명
+2. **추가할 기능 2** (선택): 한 줄 설명
+3. **추가할 기능 3** (도전): 한 줄 설명
+4. **내일 발표에서 보여주고 싶은 것**
+
+<Aside type="tip" title="기능 정의서가 중요한 이유">
+무작정 코딩을 시작하면 방향을 잃기 쉽습니다. "뭘 만들지"를 먼저 정하고 AI에게 요청하면, 프롬프트도 구체적이 되고 결과도 좋아집니다. 기능 정의서는 여러분의 **내비게이션**이에요.
+</Aside>
+
+---
+
+## 3단계: 자유 개발
+
+기능 정의서에 적은 첫 번째 기능부터 시작하세요. AI에게 기능 정의서를 보여주고 "이 기능을 추가해줘"라고 요청하면 됩니다.
+
+### 프롬프트 전략: 점진적 요청
+
+코드가 길어지면 AI에게 전체를 한 번에 보내기 어렵습니다. **단계별로 나눠서 요청**하세요.
+
+<div class="flow-diagram">
+  <div class="flow-step">
+    <div class="flow-num">1</div>
+    <div class="flow-icon">🔍</div>
+    <div class="flow-label">계획</div>
+    <div class="flow-desc">"어떤 부분을 수정해야 해?"</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-num">2</div>
+    <div class="flow-icon">✏️</div>
+    <div class="flow-label">수정</div>
+    <div class="flow-desc">"그 함수만 수정한 코드 보여줘"</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-num">3</div>
+    <div class="flow-icon">🐛</div>
+    <div class="flow-label">디버깅</div>
+    <div class="flow-desc">"이 에러 해결해줘"</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-num">4</div>
+    <div class="flow-icon">✅</div>
+    <div class="flow-label">완성</div>
+    <div class="flow-desc">다음 기능으로!</div>
+  </div>
+  <div class="flow-arrow flow-return">↩️</div>
+</div>
+
+<Aside type="tip" title="점진적 요청이 중요한 이유">
+한 번에 "전부 바꿔줘"라고 하면 AI가 엉뚱한 결과를 줄 수 있습니다. 대신 이렇게 해보세요:
+
+1. **계획 요청** — "이 기능을 추가하려면 어떤 부분을 수정해야 해?"
+2. **부분 수정** — "그러면 `make_page()` 함수만 수정한 코드를 보여줘"
+3. **에러 해결** — "이 에러 메시지가 나왔어. 해결해줘"
+4. **반복** — 작동하면 다음 기능으로!
+
+이 사이클을 반복하면 코드를 안정적으로 발전시킬 수 있습니다.
+</Aside>
+
+### 한 기능이 완성되면
+
+반드시 **실행해서 스마트폰으로 확인**하세요. Pico의 IP 주소로 접속해서 새 기능이 잘 작동하는지 직접 눈으로 보세요. 작동하면 다음 기능으로 넘어갑니다!
+
+### 코드가 너무 길어졌을 때
+
+5차시쯤 되면 코드가 꽤 길어져 있을 거예요. AI에게 전체 코드를 보내기 힘들다면:
+
+- **수정할 함수만 보내세요.** "이건 내 코드의 `make_page()` 함수야. 여기에 경고 배너를 추가해줘" 처럼 범위를 좁혀서 요청하세요.
+- **"이건 MicroPython이야"** 라고 꼭 알려주세요. AI가 일반 Python 코드를 줄 수 있거든요.
+- 메모리 에러(`ENOMEM`)가 나면, HTML을 간소화하거나 CSS를 줄여보세요.
+
+---
+
+## 4단계: 갤러리 워크
+
+개발 시간이 끝나면, 자리에서 일어나 친구들의 작품을 체험해보세요.
+
+1. 스마트폰 브라우저를 열고, **다른 친구의 Pico IP 주소**로 접속합니다.
+2. **5명 이상 방문**하세요.
+3. 가장 인상적인 기능이 뭐였는지 기억해두세요.
+4. 마음에 드는 기능이 있으면, 그 친구에게 "어떻게 만들었어?"라고 물어보세요.
+
+<Aside type="note" title="영감 얻기">
+다른 사람의 작품에서 영감을 받는 것도 개발자의 중요한 능력입니다. "베끼기"가 아니라 "배우기"예요!
+</Aside>
+
+---
+
+## 5단계: 발표 준비
+
+다음 시간에 마지막 발표가 있습니다. 아래 구성을 참고해서 준비하세요.
+
+| 순서 | 시간 | 내용 |
+|------|------|------|
+| 시연 | 1분 | 스마트폰 화면을 보여주며 핵심 기능 시연 |
+| 설명 | 30초 | "이 기능을 왜 만들었는지" 한 문장 |
+| 과정 공유 | 30초 | 가장 잘된 프롬프트 or 가장 어려웠던 점 |
+| 질문/피드백 | 30초 | 친구들에게 질문 1개 받기 |
+
+<Aside type="caution" title="코드 저장 필수!">
+오늘 수업이 끝나면 코드를 꼭 저장해두세요. 다음 시간 발표에서 그대로 사용합니다. Thonny에서 Pico에 저장되어 있는지 확인하세요.
+</Aside>
+
+---
+
+## 셀프 체크리스트
+
+오늘 활동을 돌아보세요.
+
+- [ ] 기능 정의서를 작성하고, 최소 1개 기능을 구현했다
+- [ ] AI에게 점진적으로 요청하는 방법을 사용했다 (계획 → 수정 → 디버깅)
+- [ ] 구현한 기능이 스마트폰에서 정상 작동한다
+- [ ] 친구 5명 이상의 Pico에 접속해서 작품을 체험했다
+- [ ] 다음 시간 발표에서 보여줄 내용을 정했다
+- [ ] 코드를 Pico에 저장했다
