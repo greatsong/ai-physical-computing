@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 // === 타입 정의 ===
 
@@ -42,6 +42,16 @@ const PORTS: PortSlot[] = [
 // === 메인 컴포넌트 ===
 
 export default function VirtualWiring({ sensors, title = '센서 연결 시뮬레이터' }: VirtualWiringProps) {
+  // 테마 감지
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark');
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+
   // 각 포트에 연결된 센서 ID
   const [connections, setConnections] = useState<Record<string, string>>({});
   // 현재 드래그 중인 센서
@@ -122,10 +132,11 @@ export default function VirtualWiring({ sensors, title = '센서 연결 시뮬�
     <div
       style={{
         borderRadius: 12,
-        border: '1px solid rgba(78, 205, 196, 0.3)',
-        background: 'rgba(15, 23, 42, 0.5)',
+        border: `1px solid ${isDark ? 'rgba(78, 205, 196, 0.3)' : 'rgba(78, 205, 196, 0.5)'}`,
+        background: isDark ? 'rgba(15, 23, 42, 0.5)' : 'rgba(241, 245, 249, 0.8)',
         padding: '1rem',
         fontFamily: 'system-ui, sans-serif',
+        color: isDark ? '#e2e8f0' : '#1e293b',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -138,7 +149,7 @@ export default function VirtualWiring({ sensors, title = '센서 연결 시뮬�
               padding: '0.375rem 0.75rem',
               borderRadius: 6,
               border: 'none',
-              background: allConnected ? '#4ECDC4' : '#334155',
+              background: allConnected ? '#4ECDC4' : isDark ? '#334155' : '#e2e8f0',
               color: allConnected ? '#000' : '#64748b',
               fontSize: '0.8rem',
               fontWeight: 600,
@@ -152,9 +163,9 @@ export default function VirtualWiring({ sensors, title = '센서 연결 시뮬�
             style={{
               padding: '0.375rem 0.75rem',
               borderRadius: 6,
-              border: '1px solid #475569',
+              border: `1px solid ${isDark ? '#475569' : '#cbd5e1'}`,
               background: 'transparent',
-              color: '#94a3b8',
+              color: isDark ? '#94a3b8' : '#64748b',
               fontSize: '0.8rem',
               cursor: 'pointer',
             }}
@@ -189,8 +200,8 @@ export default function VirtualWiring({ sensors, title = '센서 연결 시뮬�
         style={{ width: '100%', height: 'auto', display: 'block', marginBottom: '0.75rem' }}
       >
         {/* 보드 배경 */}
-        <rect x={5} y={5} width={570} height={220} rx={10} fill="#1a2332" stroke="#334155" strokeWidth={1.5} />
-        <text x={290} y={140} textAnchor="middle" fontSize={10} fill="#334155" fontWeight={600}>
+        <rect x={5} y={5} width={570} height={220} rx={10} fill={isDark ? '#1a2332' : '#f1f5f9'} stroke={isDark ? '#334155' : '#cbd5e1'} strokeWidth={1.5} />
+        <text x={290} y={140} textAnchor="middle" fontSize={10} fill={isDark ? '#334155' : '#94a3b8'} fontWeight={600}>
           Grove Shield for Pi Pico v1.0
         </text>
 
@@ -231,7 +242,7 @@ export default function VirtualWiring({ sensors, title = '센서 연결 시뮬�
                         : 'rgba(78, 205, 196, 0.15)'
                     : isHovered && isDropTarget
                       ? 'rgba(78, 205, 196, 0.15)'
-                      : '#0f172a'
+                      : isDark ? '#0f172a' : '#e2e8f0'
                 }
                 stroke={borderColor}
                 strokeWidth={isHovered && isDropTarget ? 2.5 : sensor ? 2 : 1.5}
@@ -250,7 +261,7 @@ export default function VirtualWiring({ sensors, title = '센서 연결 시뮬�
 
               {/* 연결된 센서 이름 */}
               {sensor && (
-                <text x={port.x} y={port.y + 30} textAnchor="middle" fontSize={8} fontWeight={500} fill={result === 'wrong' ? '#ef4444' : result === 'correct' ? '#4ade80' : '#94a3b8'}>
+                <text x={port.x} y={port.y + 30} textAnchor="middle" fontSize={8} fontWeight={500} fill={result === 'wrong' ? '#ef4444' : result === 'correct' ? '#4ade80' : isDark ? '#94a3b8' : '#64748b'}>
                   {sensor.name.length > 10 ? sensor.name.slice(0, 9) + '...' : sensor.name}
                 </text>
               )}
@@ -300,7 +311,7 @@ export default function VirtualWiring({ sensors, title = '센서 연결 시뮬�
                           ? '#4ECDC4'
                           : dragging === sensor.id
                             ? '#4ECDC4'
-                            : '#475569'
+                            : isDark ? '#475569' : '#cbd5e1'
                   }`,
                   background:
                     result === 'correct'
@@ -309,7 +320,8 @@ export default function VirtualWiring({ sensors, title = '센서 연결 시뮬�
                         ? 'rgba(239, 68, 68, 0.1)'
                         : connected
                           ? 'rgba(78, 205, 196, 0.08)'
-                          : 'rgba(30, 41, 59, 0.8)',
+                          : isDark ? 'rgba(30, 41, 59, 0.8)' : 'rgba(241, 245, 249, 0.9)',
+                  color: isDark ? '#e2e8f0' : '#1e293b',
                   cursor: connected ? 'default' : 'grab',
                   opacity: connected && dragging ? 0.5 : 1,
                   fontSize: '0.8rem',
@@ -351,7 +363,7 @@ export default function VirtualWiring({ sensors, title = '센서 연결 시뮬�
 
                 {/* 연결됨 표시 */}
                 {connected && (
-                  <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                  <span style={{ fontSize: '0.7rem', color: isDark ? '#64748b' : '#94a3b8' }}>
                     → {sensorToPort[sensor.id]}
                   </span>
                 )}
@@ -389,10 +401,10 @@ export default function VirtualWiring({ sensors, title = '센서 연결 시뮬�
                     marginBottom: 4,
                     padding: '0.375rem 0.625rem',
                     borderRadius: 6,
-                    background: '#1e293b',
-                    border: '1px solid #475569',
+                    background: isDark ? '#1e293b' : '#ffffff',
+                    border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
                     fontSize: '0.75rem',
-                    color: '#cbd5e1',
+                    color: isDark ? '#cbd5e1' : '#334155',
                     whiteSpace: 'nowrap',
                     zIndex: 10,
                   }}
@@ -405,7 +417,7 @@ export default function VirtualWiring({ sensors, title = '센서 연결 시뮬�
         })}
       </div>
 
-      <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0.5rem 0 0 0' }}>
+      <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0.5rem 0 0 0', }}>
         센서 카드를 클릭한 후 보드의 포트를 클릭하여 연결하세요. 연결된 포트를 클릭하면 해제됩니다.
       </p>
     </div>

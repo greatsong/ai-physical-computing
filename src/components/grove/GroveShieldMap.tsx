@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 
 // === 타입 정의 ===
 
@@ -86,6 +86,7 @@ function GroveConnector({
   isActive,
   isHovered,
   sensorNames,
+  isDark,
   onMouseEnter,
   onMouseLeave,
   onClick,
@@ -95,6 +96,7 @@ function GroveConnector({
   isActive: boolean;
   isHovered: boolean;
   sensorNames: string[];
+  isDark: boolean;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   onClick: () => void;
@@ -146,7 +148,7 @@ function GroveConnector({
         height={32}
         rx={4}
         ry={4}
-        fill={isActive || isHovered ? port.color : '#1e293b'}
+        fill={isActive || isHovered ? port.color : isDark ? '#1e293b' : '#e2e8f0'}
         stroke={port.color}
         strokeWidth={isActive ? 2.5 : isHovered ? 2 : 1.5}
         style={{
@@ -175,7 +177,7 @@ function GroveConnector({
         fontSize={11}
         fontWeight={600}
         fontFamily="system-ui, sans-serif"
-        fill={isActive ? port.color : '#94a3b8'}
+        fill={isActive ? port.color : isDark ? '#94a3b8' : '#64748b'}
         style={{ transition: 'fill 0.2s' }}
       >
         {port.name}
@@ -188,7 +190,7 @@ function GroveConnector({
         textAnchor="middle"
         fontSize={9}
         fontFamily="system-ui, sans-serif"
-        fill="#64748b"
+        fill={isDark ? '#64748b' : '#94a3b8'}
       >
         {port.gpio}
       </text>
@@ -277,7 +279,7 @@ function GroveConnector({
           })}
 
           {/* I2C Hub 아이콘 */}
-          <rect x={x - 6} y={y + 30} width={12} height={8} rx={2} fill="#1e293b" stroke={port.color} strokeWidth={1} />
+          <rect x={x - 6} y={y + 30} width={12} height={8} rx={2} fill={isDark ? '#1e293b' : '#f1f5f9'} stroke={port.color} strokeWidth={1} />
           <text x={x} y={y + 37} textAnchor="middle" fontSize={5} fill={port.color} fontWeight={700}>Hub</text>
         </g>
       )}
@@ -291,10 +293,12 @@ function Tooltip({
   port,
   position,
   sensorNames,
+  isDark,
 }: {
   port: PortInfo;
   position: { x: number; y: number };
   sensorNames: string[];
+  isDark: boolean;
 }) {
   const hasSensors = sensorNames.length > 0;
   const hasMultiple = sensorNames.length > 1;
@@ -318,7 +322,7 @@ function Tooltip({
         width={tooltipWidth}
         height={tooltipHeight}
         rx={8}
-        fill="#0f172a"
+        fill={isDark ? '#0f172a' : '#ffffff'}
         stroke={port.color}
         strokeWidth={1}
         opacity={0.95}
@@ -334,17 +338,17 @@ function Tooltip({
         {port.type}
       </text>
       {/* GPIO */}
-      <text x={tx + 12} y={ty + 38} fontSize={10} fill="#94a3b8" fontFamily="system-ui, sans-serif">
-        GPIO: <tspan fill="#e2e8f0" fontWeight={500}>{port.gpio}</tspan>
+      <text x={tx + 12} y={ty + 38} fontSize={10} fill={isDark ? '#94a3b8' : '#64748b'} fontFamily="system-ui, sans-serif">
+        GPIO: <tspan fill={isDark ? '#e2e8f0' : '#1e293b'} fontWeight={500}>{port.gpio}</tspan>
       </text>
       {/* 센서 예시 */}
-      <text x={tx + 12} y={ty + 55} fontSize={10} fill="#94a3b8" fontFamily="system-ui, sans-serif">
-        사용 가능: <tspan fill="#cbd5e1">{port.sensorExamples}</tspan>
+      <text x={tx + 12} y={ty + 55} fontSize={10} fill={isDark ? '#94a3b8' : '#64748b'} fontFamily="system-ui, sans-serif">
+        사용 가능: <tspan fill={isDark ? '#cbd5e1' : '#334155'}>{port.sensorExamples}</tspan>
       </text>
 
       {/* 연결된 센서 — 1개일 때 */}
       {hasSensors && !hasMultiple && (
-        <text x={tx + 12} y={ty + 72} fontSize={10} fill="#94a3b8" fontFamily="system-ui, sans-serif">
+        <text x={tx + 12} y={ty + 72} fontSize={10} fill={isDark ? '#94a3b8' : '#64748b'} fontFamily="system-ui, sans-serif">
           연결됨: <tspan fill={port.color} fontWeight={600}>{sensorNames[0]}</tspan>
         </text>
       )}
@@ -352,7 +356,7 @@ function Tooltip({
       {/* 연결된 센서 — 여러 개일 때 */}
       {hasMultiple && (
         <g>
-          <text x={tx + 12} y={ty + 72} fontSize={10} fill="#94a3b8" fontFamily="system-ui, sans-serif">
+          <text x={tx + 12} y={ty + 72} fontSize={10} fill={isDark ? '#94a3b8' : '#64748b'} fontFamily="system-ui, sans-serif">
             연결됨 (<tspan fill="#f59e0b">I2C Hub 사용</tspan>):
           </text>
           {sensorNames.map((name, i) => (
@@ -378,6 +382,16 @@ export default function GroveShieldMap({
   className = '',
 }: GroveShieldMapProps) {
   const [hoveredPort, setHoveredPort] = useState<string | null>(null);
+
+  // 테마 감지
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark');
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
 
   // 같은 포트에 여러 센서가 연결된 경우를 처리
   // "SCD30+DHT20+OLED" 형태도 개별 분리
@@ -421,8 +435,8 @@ export default function GroveShieldMap({
           width={580}
           height={240}
           rx={12}
-          fill="#1a2332"
-          stroke="#334155"
+          fill={isDark ? '#1a2332' : '#f1f5f9'}
+          stroke={isDark ? '#334155' : '#cbd5e1'}
           strokeWidth={2}
           filter="url(#boardShadow)"
         />
@@ -434,17 +448,17 @@ export default function GroveShieldMap({
           [26, 234],
           [574, 234],
         ].map(([cx, cy], i) => (
-          <circle key={i} cx={cx} cy={cy} r={5} fill="none" stroke="#475569" strokeWidth={1.5} />
+          <circle key={i} cx={cx} cy={cy} r={5} fill="none" stroke={isDark ? '#475569' : '#cbd5e1'} strokeWidth={1.5} />
         ))}
 
         {/* 보드 제목 */}
-        <text x={300} y={140} textAnchor="middle" fontSize={12} fill="#475569" fontFamily="system-ui, sans-serif" fontWeight={600}>
+        <text x={300} y={140} textAnchor="middle" fontSize={12} fill={isDark ? '#475569' : '#94a3b8'} fontFamily="system-ui, sans-serif" fontWeight={600}>
           Grove Shield for Pi Pico v1.0
         </text>
 
         {/* 영역 구분선 */}
-        <line x1={310} y1={30} x2={310} y2={100} stroke="#2d3a4a" strokeWidth={1} strokeDasharray="4 3" />
-        <line x1={310} y1={170} x2={310} y2={230} stroke="#2d3a4a" strokeWidth={1} strokeDasharray="4 3" />
+        <line x1={310} y1={30} x2={310} y2={100} stroke={isDark ? '#2d3a4a' : '#cbd5e1'} strokeWidth={1} strokeDasharray="4 3" />
+        <line x1={310} y1={170} x2={310} y2={230} stroke={isDark ? '#2d3a4a' : '#cbd5e1'} strokeWidth={1} strokeDasharray="4 3" />
 
         {/* 영역 라벨 */}
         <text x={150} y={100} textAnchor="middle" fontSize={8} fill="#22c55e" opacity={0.5} fontFamily="system-ui, sans-serif">ANALOG</text>
@@ -461,6 +475,7 @@ export default function GroveShieldMap({
             isActive={activePort === port.name}
             isHovered={hoveredPort === port.name}
             sensorNames={sensorsByPort.get(port.name) || []}
+            isDark={isDark}
             onMouseEnter={() => setHoveredPort(port.name)}
             onMouseLeave={() => setHoveredPort(null)}
             onClick={() => onPortClick?.(port)}
@@ -473,6 +488,7 @@ export default function GroveShieldMap({
             port={hoveredInfo}
             position={hoveredPos}
             sensorNames={sensorsByPort.get(hoveredInfo.name) || []}
+            isDark={isDark}
           />
         )}
       </svg>
@@ -497,7 +513,7 @@ export default function GroveShieldMap({
             { label: 'UART', color: '#a855f7' },
           ] as const
         ).map(({ label, color }) => (
-          <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
+          <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 4, color: isDark ? '#94a3b8' : '#64748b' }}>
             <span
               style={{
                 width: 10,

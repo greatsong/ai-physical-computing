@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * Grove 커넥터 안내 정보 카드
@@ -7,12 +7,22 @@ import { useState } from 'react';
 export default function GroveConnectorTip() {
   const [isOpen, setIsOpen] = useState(false);
 
+  // 테마 감지
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark');
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div
       style={{
         borderRadius: 10,
-        border: '1px solid #a8e6cf',
-        backgroundColor: '#e8faf4',
+        border: `1px solid ${isDark ? 'rgba(78, 205, 196, 0.3)' : '#a8e6cf'}`,
+        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.5)' : '#e8faf4',
         overflow: 'hidden',
         fontFamily: 'system-ui, sans-serif',
         maxWidth: 540,
@@ -34,7 +44,7 @@ export default function GroveConnectorTip() {
           cursor: 'pointer',
           fontSize: 14,
           fontWeight: 600,
-          color: '#1a6b52',
+          color: isDark ? '#4ECDC4' : '#1a6b52',
           textAlign: 'left',
         }}
       >
@@ -69,7 +79,7 @@ export default function GroveConnectorTip() {
             transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
           }}
         >
-          <path d="M4 6l4 4 4-4" stroke="#1a6b52" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M4 6l4 4 4-4" stroke={isDark ? '#4ECDC4' : '#1a6b52'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
 
@@ -88,7 +98,7 @@ export default function GroveConnectorTip() {
             padding: '0 14px 14px 14px',
             fontSize: 13,
             lineHeight: 1.7,
-            color: '#2d6a56',
+            color: isDark ? '#cbd5e1' : '#2d6a56',
           }}
         >
           <p style={{ margin: '0 0 8px 0' }}>
@@ -105,11 +115,11 @@ export default function GroveConnectorTip() {
             }}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontWeight: 600, color: '#1a6b52' }}>4개 핀 구성</span>
+              <span style={{ fontWeight: 600, color: isDark ? '#4ECDC4' : '#1a6b52' }}>4개 핀 구성</span>
               <span>SIG, NC(또는 SIG2), VCC, GND</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontWeight: 600, color: '#1a6b52' }}>케이블 규격</span>
+              <span style={{ fontWeight: 600, color: isDark ? '#4ECDC4' : '#1a6b52' }}>케이블 규격</span>
               <span>표준 4핀 Grove 케이블 (양쪽 커넥터)</span>
             </div>
           </div>
@@ -127,7 +137,7 @@ export default function GroveConnectorTip() {
             ].map(({ cx, label }) => (
               <g key={label}>
                 <circle cx={cx} cy={20} r={5} fill="#4ECDC4" />
-                <text x={cx} y={38} textAnchor="middle" fontSize={7} fill="#2d6a56" fontFamily="system-ui, sans-serif" fontWeight={500}>
+                <text x={cx} y={38} textAnchor="middle" fontSize={7} fill={isDark ? '#94a3b8' : '#2d6a56'} fontFamily="system-ui, sans-serif" fontWeight={500}>
                   {label}
                 </text>
               </g>
