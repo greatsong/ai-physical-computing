@@ -1,132 +1,196 @@
 ---
-title: "12차시: 전자담배 검출 풀버전 – MQ2 + SCD30 + OLED + LED Stick"
-description: "이중 센서 검증과 OLED 디스플레이를 결합한 고급 전자담배 검출기를 구현합니다."
+title: "12차시: 전자담배 검출기 풀버전"
+description: "MQ2 가스 센서와 SCD30 CO2 센서의 이중 검증으로 오탐을 줄이고, OLED와 RGB LED로 상태를 표시하는 4부품 통합 검출기를 만듭니다."
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 import Mermaid from '../../../components/Mermaid';
+import GroveShieldMap from '../../../components/grove/GroveShieldMap';
+import GroveConnectorTip from '../../../components/grove/GroveConnectorTip';
+import VirtualWiring from '../../../components/grove/VirtualWiring';
+
+{/* 섹션 A: 헤더 */}
 
 <p style="color: var(--sl-color-gray-3); margin-bottom: 0.25rem;">인피컴 프로젝트 &gt; 심화 통합 프로젝트 &gt; 12차시</p>
 
-# 전자담배 검출 풀버전 – MQ2 + SCD30 + OLED + LED Stick
+# 전자담배 검출기 풀버전
 
-## 기본 정보
+> **오늘의 질문:** "센서 하나로는 왜 오탐이 생길까? 두 센서를 합치면 정말 더 정확해질까?"
 
-| 항목 | 내용 |
-|------|------|
-| 주제 | 이중 센서 검증 + 디스플레이를 갖춘 고급 검출기 |
-| 시간 | 50분 (1교시) |
-| 형태 | 교사 시연 + 모둠 순환 체험 (부품 1세트) |
-| 준비물 | Pico 2 WH + Grove Shield, Grove MQ2, Grove SCD30, Grove OLED 0.96", Grove RGB LED Stick, USB 케이블 |
-| 선수학습 | 3차시 (MQ2+LED 검출기), 7차시 (SCD30), 11차시 (다중 센서) |
-
-## 학습목표
-
-1. 센서 퓨전으로 오탐율을 줄이는 이중 검증 로직을 설계할 수 있다
-2. ADC(MQ2)와 I2C(SCD30) 센서를 동시 운용할 수 있다
-3. 4개 부품 통합 시스템을 설계·구현할 수 있다
-
-## 50분 타임라인
-
-```
-[도입: 5분]
-└─ 00-05분: "3차시 검출기의 한계와 개선"
-
-[실습 1: 15분] 이중 검증 설계
-├─ 05-12분: 오탐 문제 + 이중 센서 전략
-└─ 12-20분: step1 – MQ2 + SCD30 동시 읽기
-
-[실습 2: 20분] 풀버전 구현
-├─ 20-30분: step2 – 이중 검증 로직 + OLED
-└─ 30-40분: step3 – 로그 기록 + 경보 시스템
-
-[정리: 10분]
-├─ 40-45분: 3차시 vs 12차시 비교
-└─ 45-50분: 정리 + 실제 제품화 토의
-```
+<p style="color: var(--sl-color-gray-3);">
+50분 | MQ2 + SCD30 + OLED + RGB LED Stick | 난이도 ●●●●○
+</p>
 
 ---
 
-## 상세 수업 진행
+{/* 섹션 B: 준비물 */}
 
-### 도입 (00-05분)
+## 준비물
 
-**[강의 스크립트]**
+| 준비물 | 설명 |
+|--------|------|
+| Raspberry Pi Pico 2 WH | MicroPython이 동작하는 마이크로컨트롤러입니다. |
+| Grove Shield for Pi Pico | Pico 위에 올려 꽂는 확장 보드입니다. Grove 커넥터 포트가 여러 개 있어 센서를 케이블 하나로 연결할 수 있습니다. |
+| Grove 케이블 (4핀) x4 | 센서와 Shield를 연결하는 케이블입니다. 오늘은 4개의 부품을 연결하므로 4개가 필요합니다. |
+| Grove MQ2 가스 센서 | 가연성 가스(연기, LPG, 알코올 등)를 감지하는 아날로그 센서입니다. ADC 방식으로 값을 읽습니다. |
+| Grove SCD30 CO2 센서 | 공기 중 CO2 농도, 온도, 습도를 동시에 측정하는 I2C 센서입니다. |
+| Grove OLED 디스플레이 0.96" | 128x64 픽셀의 소형 화면입니다. I2C 방식으로 통신합니다. |
+| Grove RGB LED Stick | NeoPixel LED 10개가 일렬로 배치된 모듈입니다. 디지털 핀으로 제어합니다. |
+| Micro USB 케이블 | Pico와 컴퓨터를 연결하여 전원을 공급하고 코드를 전송합니다. |
 
-선생님: "3차시에서 만든 검출기, 잘 작동했지만 문제가 있었어요."
+### 연결 방법
 
-```
-3차시 검출기의 한계:
+오늘은 **4개의 부품**을 동시에 연결합니다. 포트 종류가 서로 다르므로 주의하세요.
 
-문제 1: 오탐 (False Positive)
-  - 손소독제, 향수, 음식 냄새에도 반응
-  - "전자담배야!" 했는데 사실은 손소독제...
+| 부품 | 포트 | 통신 방식 |
+|------|------|-----------|
+| MQ2 가스 센서 | **A0** | ADC (아날로그) |
+| SCD30 CO2 센서 | **I2C0** | I2C (주소: `0x61`) |
+| OLED 디스플레이 | **I2C1** | I2C (주소: `0x3C`) |
+| RGB LED Stick | **D16** | 디지털 (NeoPixel) |
 
-문제 2: 수치 없음
-  - 빨간불만 보고는 "얼마나 심한지" 모름
+:::tip[Grove 커넥터 안내]
+4핀 커넥터라 방향이 정해져 있어서, 홈에 맞춰 끝까지 밀어 넣으면 됩니다. 4개 모두 같은 방식입니다.
+:::
 
-문제 3: 기록 없음
-  - 언제, 얼마나 감지됐는지 증거가 없음
+:::caution[I2C 포트 구분]
+SCD30과 OLED 모두 I2C 센서이지만, 서로 다른 I2C 버스에 연결합니다. SCD30은 **I2C0**, OLED는 **I2C1**입니다. 바꿔 꽂으면 코드에서 인식하지 못합니다.
+:::
 
-해결: 센서 2개 + OLED + 로그!
-```
+### 보드 포트 맵
 
-선생님: "MQ2는 가연성 가스에 반응하고, SCD30은 CO2에 반응해요. 전자담배를 피우면 둘 다 올라가요. 하지만 손소독제는? MQ2만 올라가고 CO2는 안 올라가죠! 이걸로 구분할 수 있어요."
+아래 보드에서 4개 포트의 위치를 확인하세요. A0(아날로그), I2C0, I2C1, D16(디지털) 포트에 각각 부품을 연결합니다.
+
+<GroveShieldMap
+  client:load
+  activePort="A0"
+  connectedSensors={[
+    { port: 'A0', sensorName: 'MQ2 가스 센서' },
+    { port: 'I2C0', sensorName: 'SCD30 CO2' },
+    { port: 'I2C1', sensorName: 'OLED 0.96"' },
+    { port: 'D16', sensorName: 'RGB LED Stick' },
+  ]}
+/>
+
+<GroveConnectorTip client:load />
+
+### 연결 연습
+
+센서 카드를 클릭한 후, 보드의 올바른 포트를 클릭하여 연결해보세요. 4개 모두 맞춰야 합니다.
+
+<VirtualWiring
+  client:load
+  title="12차시: 4부품 통합 연결하기"
+  sensors={[
+    { id: 'mq2', name: 'MQ2 (가스)', correctPort: 'A0', portType: '아날로그', hint: '아날로그 센서는 A0 포트에 연결합니다' },
+    { id: 'scd30', name: 'SCD30 (CO2)', correctPort: 'I2C0', portType: 'I2C', hint: 'SCD30은 I2C0 포트에 연결합니다' },
+    { id: 'oled', name: 'OLED 디스플레이', correctPort: 'I2C1', portType: 'I2C', hint: 'OLED는 I2C1 포트에 연결합니다' },
+    { id: 'led-stick', name: 'RGB LED Stick', correctPort: 'D16', portType: '디지털', hint: 'LED Stick은 D16 포트에 연결합니다' },
+  ]}
+/>
+
+---
+
+{/* 섹션 C: 단계별 활동 가이드 */}
+
+## 활동 가이드
+
+### Step 1. 4부품 연결하기 (5분)
+
+1. **Pico 2 WH가 Grove Shield 위에 올려져 있는지 확인합니다.**
+2. **MQ2 가스 센서**를 Grove 케이블로 **A0 포트**에 연결합니다.
+3. **SCD30 CO2 센서**를 **I2C0 포트**에 연결합니다.
+4. **OLED 디스플레이**를 **I2C1 포트**에 연결합니다.
+5. **RGB LED Stick**을 **D16 포트**에 연결합니다.
+6. Micro USB 케이블로 컴퓨터와 연결합니다.
+
+:::tip
+4개의 케이블이 서로 엉키지 않도록 정리해두면 나중에 디버깅이 편합니다.
+:::
+
+### Step 2. 이중 센서 비교 실험 (15분)
+
+먼저 MQ2와 SCD30을 동시에 읽으며 **반응 패턴의 차이**를 관찰합니다.
+
+1. 아래 [기본 코드](#기본-코드)를 Thonny에 입력하고 실행하세요.
+2. 다음 실험을 해보세요.
+
+| 실험 | MQ2 반응 | CO2 반응 | 결론 |
+|------|----------|----------|------|
+| 입김 불기 | 약간 상승 | 크게 상승 | CO2만 높음 |
+| 손소독제 가까이 대기 | 크게 상승 | 변화 없음 | MQ2만 높음 |
+| 입김 + 손소독제 동시 | 크게 상승 | 크게 상승 | 둘 다 높음 |
+
+:::note[생각해보기]
+손소독제에는 CO2가 없지만 알코올 가스가 있습니다. 입김에는 CO2가 있지만 가연성 가스는 적습니다. 전자담배 연기에는 둘 다 포함됩니다. 이 차이가 이중 검증의 핵심입니다.
+:::
+
+### Step 3. 이중 검증 로직 이해하기 (10분)
+
+아래 다이어그램은 MQ2와 SCD30 두 센서의 값을 조합하여 4가지 상태를 판정하는 로직입니다.
 
 <Mermaid client:load chart={`
-graph TD
-    subgraph 입력["입력 센서"]
-        MQ2["MQ2<br/>가연성 가스 감지<br/>(ADC)"]
-        SCD30["SCD30<br/>CO2 농도 측정<br/>(I2C)"]
-    end
-    subgraph 판정["이중 검증 의사결정"]
-        BOTH{"MQ2 높음<br/>AND<br/>CO2 높음?"}
-        MQ2_ONLY{"MQ2만<br/>높음?"}
-        CO2_ONLY{"CO2만<br/>높음?"}
-    end
-    subgraph 결과["판정 결과"]
-        DETECTED["🔴 검출!<br/>전자담배 가능성"]
-        CHEMICAL["🟡 화학물질<br/>손소독제 등"]
-        VENTILATE["🟡 환기 필요<br/>사람 많음"]
-        SAFE["🟢 안전"]
-    end
-    MQ2 --> BOTH
-    SCD30 --> BOTH
-    BOTH -->|Yes| DETECTED
-    BOTH -->|No| MQ2_ONLY
-    MQ2_ONLY -->|Yes| CHEMICAL
-    MQ2_ONLY -->|No| CO2_ONLY
-    CO2_ONLY -->|Yes| VENTILATE
-    CO2_ONLY -->|No| SAFE
-    style DETECTED fill:#ff4444,color:#fff
-    style CHEMICAL fill:#ffaa00,color:#000
-    style VENTILATE fill:#ffdd00,color:#000
-    style SAFE fill:#44aa44,color:#fff
-`} caption="이중 검증 로직 — 두 센서가 동시에 높아야 '검출' 판정" />
+flowchart TD
+    A["센서 데이터 읽기"] --> B{"MQ2 값 > 임계값?"}
+    B -- 예 --> C{"CO2 급상승?"}
+    B -- 아니오 --> D{"CO2 급상승?"}
+    C -- 예 --> E["🔴 DETECTED\\n이중 검증 통과"]
+    C -- 아니오 --> F["🟠 CHEMICAL\\n화학물질 의심"]
+    D -- 예 --> G["🟡 VENTILATE\\n환기 필요"]
+    D -- 아니오 --> H["🟢 SAFE\\n안전"]
+    style E fill:#ff4444,color:#fff
+    style F fill:#ff8800,color:#fff
+    style G fill:#cccc00,color:#000
+    style H fill:#00aa00,color:#fff
+`} caption="이중 검증 의사결정 로직 — 두 센서가 모두 높을 때만 검출 판정" />
 
-:::tip[이중 검증의 핵심]
-MQ2(가스)와 SCD30(CO2) 두 센서가 **동시에** 임계값을 넘어야 검출로 판정합니다. 이렇게 하면 손소독제(MQ2만 반응)나 사람이 많은 곳(CO2만 상승) 같은 오탐을 크게 줄일 수 있어요.
+이 로직 덕분에 손소독제(MQ2만 반응)나 사람이 많은 교실(CO2만 상승)에서는 오탐이 발생하지 않습니다.
+
+### Step 4. 풀버전 시스템 구동 및 테스트 (20분)
+
+1. [도전 코드](#도전-코드-이중-검증--oled--led-경보)를 Thonny에 입력하고 실행하세요.
+2. 처음 10초간 **기준값 보정(Calibrating)** 이 진행됩니다. 이 동안 센서 근처에 아무것도 대지 마세요.
+3. 보정이 끝나면 OLED에 상태가 표시됩니다.
+4. 다음을 시도하며 반응을 관찰하세요.
+
+| 시도 | OLED 표시 | LED 색 |
+|------|-----------|--------|
+| 아무것도 안 함 | `[SAFE]` | 초록 (약하게) |
+| 손소독제 가까이 | `[CHEMICAL]` | 주황 |
+| 입김 불기 | `[VENTILATE]` | 노랑 |
+| 입김 + 손소독제 동시 | `[DETECTED]` | 빨강 점멸 |
+
+:::note[생각해보기]
+검출 횟수(`Detect: N`)가 누적되는 것을 관찰하세요. 이 로그 기능은 "증거"가 됩니다. 실제 학교 화장실 모니터링 장치에도 이런 로그가 기록됩니다.
 :::
 
 ---
 
-### 실습 1: 이중 검증 설계 (05-20분)
+{/* 섹션 D: 코드 예시 */}
 
-**[코드: step1_dual_sensor.py]**
+## 코드
+
+<Tabs>
+  <TabItem label="기본 코드">
+
+### 기본 코드
+
 ```python
 # === MQ2 + SCD30 동시 읽기 ===
-# 두 센서의 반응 패턴 비교
+# 두 센서의 반응 패턴을 비교합니다
 
 from machine import I2C, Pin, ADC
 import scd30
 import time
 
 # --- 하드웨어 ---
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
-gas = ADC(Pin(26))  # MQ2 (ADC)
-co2_sensor = scd30.SCD30(i2c, addr=0x61)  # SCD30 (I2C)
+i2c0 = I2C(0, sda=Pin(8), scl=Pin(9))   # SCD30 (I2C0)
+gas = ADC(Pin(26))                        # MQ2 (A0 = GP26)
+co2_sensor = scd30.SCD30(i2c0, addr=0x61)
 co2_sensor.start_continous_measurement()
 
 def read_mq2_avg(n=10):
+    """MQ2 값을 n번 읽어 평균을 구합니다 (노이즈 감소)"""
     total = 0
     for _ in range(n):
         total += gas.read_u16()
@@ -148,44 +212,27 @@ while True:
     time.sleep(2)
 ```
 
-선생님: "이제 실험해봅시다. 먼저 입김을 불어보세요. MQ2와 CO2 둘 다 올라가죠? 다음에 손소독제를 가까이 대보세요. MQ2만 올라가고 CO2는 안 변해요. 이게 이중 검증의 핵심!"
+### 줄별 해설
 
----
+| 줄 | 코드 | 설명 |
+|----|------|------|
+| 9 | `I2C(0, sda=Pin(8), scl=Pin(9))` | Grove Shield의 I2C0 포트를 사용합니다. SCD30 센서가 여기에 연결됩니다. |
+| 10 | `ADC(Pin(26))` | A0 포트(GP26)에 연결된 MQ2 가스 센서를 아날로그로 읽습니다. |
+| 12 | `start_continous_measurement()` | SCD30에 연속 측정 모드를 시작하라고 명령합니다. 약 2초마다 새 데이터가 준비됩니다. |
+| 14~18 | `read_mq2_avg()` | MQ2 값을 10번 읽어 평균을 구합니다. 아날로그 센서는 노이즈가 있으므로 평균을 내면 더 안정적입니다. |
+| 27 | `co2_sensor.data_ready()` | SCD30이 새 데이터를 준비했는지 확인합니다. 준비되지 않았으면 건너뜁니다. |
+| 29 | `f"MQ2: {mq2_val:5d}"` | `:5d`는 5자리 정수로 출력하라는 포맷입니다. 숫자 폭이 맞춰져 비교하기 쉽습니다. |
 
-### 실습 2: 풀버전 구현 (20-40분)
+  </TabItem>
+  <TabItem label="도전 코드">
 
-<Mermaid client:load chart={`
-graph LR
-    subgraph 센서["센서 입력"]
-        A["MQ2<br/>(ADC · Pin26)"]
-        B["SCD30<br/>(I2C · 0x61)"]
-    end
-    subgraph 처리["Pico 2 WH 처리"]
-        C["이중 검증<br/>judge() 함수"]
-        D["기준값 보정<br/>co2_baseline"]
-        E["검출 로그<br/>최근 10건"]
-    end
-    subgraph 출력["출력 장치"]
-        F["OLED 0.96<br/>(I2C · 0x3C)"]
-        G["RGB LED Stick<br/>(NeoPixel · Pin16)"]
-    end
-    A -->|가스 농도| C
-    B -->|CO2·온도·습도| C
-    B -->|초기 보정| D
-    D --> C
-    C -->|상태+수치| F
-    C -->|색상 경보| G
-    C -->|검출 시| E
-    style A fill:#e8f5e9
-    style B fill:#e3f2fd
-    style F fill:#fff3e0
-    style G fill:#fce4ec
-`} caption="4부품 시스템 아키텍처 — 센서 2개 + 출력 2개 통합" />
+### 도전 코드: 이중 검증 + OLED + LED 경보
 
-**[코드: step2_dual_detector.py]**
+기본 코드의 센서 읽기에 판정 로직, OLED 표시, LED 경보를 추가한 풀버전입니다.
+
 ```python
 # === 전자담배 검출기 풀버전 ===
-# MQ2 + SCD30 이중 검증 + OLED + LED
+# MQ2 + SCD30 이중 검증 + OLED + LED Stick
 
 from machine import I2C, Pin, ADC
 from neopixel import NeoPixel
@@ -194,23 +241,23 @@ import scd30
 import time
 
 # --- 하드웨어 ---
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
-gas = ADC(Pin(26))
-co2_sensor = scd30.SCD30(i2c, addr=0x61)
+i2c0 = I2C(0, sda=Pin(8), scl=Pin(9))   # SCD30 (I2C0)
+i2c1 = I2C(1, sda=Pin(6), scl=Pin(7))   # OLED (I2C1)
+gas = ADC(Pin(26))                        # MQ2 (A0)
+co2_sensor = scd30.SCD30(i2c0, addr=0x61)
 co2_sensor.start_continous_measurement()
-oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+oled = ssd1306.SSD1306_I2C(128, 64, i2c1)
 NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS)
+np = NeoPixel(Pin(16), NUM_LEDS)          # RGB LED Stick (D16)
 
 # --- 임계값 ---
 MQ2_THRESHOLD = 25000
-CO2_BASELINE = 600     # 평상시 CO2
-CO2_SPIKE = 200        # 기준 대비 이 이상 상승하면 의심
+CO2_BASELINE = 600
+CO2_SPIKE = 200
 
 # --- 상태 ---
-co2_baseline = CO2_BASELINE  # 실행 시 자동 보정됨
+co2_baseline = CO2_BASELINE
 detection_count = 0
-log = []  # 검출 로그
 
 def read_mq2_avg(n=10):
     total = 0
@@ -231,24 +278,14 @@ def blink_alert():
         set_leds(0, 0, 0)
         time.sleep(0.1)
 
-# --- 판정 로직 ---
 def judge(mq2, co2):
-    """이중 검증으로 판정
-    둘 다 높으면 = 검출 (전자담배 가능성 높음)
-    MQ2만 높으면 = 화학물질 (손소독제 등)
-    CO2만 높으면 = 환기 필요 (사람 많음)
-    둘 다 정상이면 = 안전"""
-    global detection_count, log
-
+    """이중 검증 판정"""
+    global detection_count
     mq2_high = mq2 > MQ2_THRESHOLD
     co2_high = co2 > (co2_baseline + CO2_SPIKE)
 
     if mq2_high and co2_high:
         detection_count += 1
-        timestamp = time.ticks_ms() // 1000
-        log.append(f"{timestamp}s: MQ2={mq2} CO2={co2:.0f}")
-        if len(log) > 10:
-            log.pop(0)  # 최근 10건만 유지
         return "DETECTED", (255, 0, 0)
     elif mq2_high:
         return "CHEMICAL", (255, 165, 0)
@@ -261,7 +298,7 @@ def judge(mq2, co2):
 oled.fill(0)
 oled.text("Calibrating...", 0, 28)
 oled.show()
-print("기준값 보정 중...")
+print("기준값 보정 중... (10초)")
 time.sleep(5)
 
 total_co2 = 0
@@ -277,23 +314,22 @@ if count > 0:
 print(f"CO2 기준값: {co2_baseline:.0f}ppm")
 
 # --- 메인 루프 ---
-print("=== 전자담배 검출기 풀버전 가동 ===")
+print("=== 검출기 풀버전 가동 ===")
 
 while True:
     mq2_val = read_mq2_avg()
 
     if co2_sensor.data_ready():
         co2, temp, hum = co2_sensor.read_measurement()
-
         status, color = judge(mq2_val, co2)
 
-        # LED
+        # LED 표시
         if status == "DETECTED":
             blink_alert()
         else:
             set_leds(*color)
 
-        # OLED
+        # OLED 표시
         oled.fill(0)
         oled.text(f"[{status}]", 0, 0)
         oled.text(f"MQ2: {mq2_val}", 0, 14)
@@ -307,83 +343,83 @@ while True:
     time.sleep(2)
 ```
 
-**[시각 자료: OLED 화면]**
-
-```
-┌────────────────────────┐
-│[SAFE]                  │
-│MQ2: 12340              │
-│CO2: 523ppm             │
-│T:23.4C H:52%           │
-│                        │
-│Detect: 0               │
-└────────────────────────┘
-
-  ↓ 전자담배 감지 시
-
-┌────────────────────────┐
-│[DETECTED]              │
-│MQ2: 42150              │
-│CO2: 1823ppm            │
-│T:24.1C H:58%           │
-│                        │
-│Detect: 3               │
-└────────────────────────┘
-```
-
-**[예상 Q&A]**
-
-:::note[Q: "실제 전자담배가 없는데 어떻게 테스트해요?"]
-입김 + 손소독제를 동시에 사용하면 비슷한 효과를 낼 수 있어요. 또는 라이터 가스(부탄)를 살짝 근처에서 틀면 MQ2가 반응해요. 안전에 주의하세요!
+:::note[코드 읽어보기]
+`judge()` 함수가 이중 검증의 핵심입니다. MQ2와 CO2 값을 각각 임계값과 비교한 뒤, **둘 다 높을 때만** "DETECTED"를 반환합니다. `MQ2_THRESHOLD`와 `CO2_SPIKE` 값을 여러분 환경에 맞게 조절해보세요. 기준값 보정 단계에서 현재 교실의 CO2 수준을 자동으로 측정합니다.
 :::
 
-:::note[Q: "log에 저장한 건 전원 끄면 사라지나요?"]
-네, 메모리에만 있으니까요. 영구 저장하려면 Pico의 파일 시스템에 기록하거나, Wi-Fi로 서버에 전송해야 해요.
+  </TabItem>
+</Tabs>
+
+---
+
+{/* 섹션 E: 와우 모먼트 */}
+
+## 잠깐, 방금 무슨 일이 일어난 걸까요?
+
+여러분이 방금 한 일을 다시 생각해보세요.
+
+공기 중의 가스 분자가
+**→** MQ2 센서에서 **ADC 값**으로 변환되고
+**→** 동시에 SCD30이 **CO2 농도**를 측정하고
+**→** Pico가 두 값을 조합하여 **4가지 상태로 판정**하고
+**→** OLED에 **숫자와 상태**를 표시하고
+**→** LED Stick이 **색으로 위험도**를 알려줍니다.
+
+센서 하나로는 손소독제와 전자담배를 구분할 수 없었습니다. 그러나 서로 다른 원리의 센서 두 개를 **조합(센서 퓨전)** 하자, 구분이 가능해졌습니다. 자율주행차가 카메라, 라이다, 레이더를 함께 사용하는 이유, 화재 경보기가 연기와 열을 동시에 감지하는 이유가 바로 이것입니다.
+
+---
+
+{/* 섹션 F: 데이터/통계 활동 */}
+
+## 데이터로 생각하기
+
+Step 2에서 기록한 실험 결과를 정리해봅시다.
+
+#### 이중 검증 결과표
+
+| 실험 상황 | MQ2 값 | CO2 값 (ppm) | 판정 결과 | 오탐 여부 |
+|-----------|--------|-------------|-----------|-----------|
+| 평상시 | | | | |
+| 손소독제 | | | | |
+| 입김 | | | | |
+| 입김 + 손소독제 | | | | |
+
+1. **MQ2만 사용했다면** 손소독제에서도 "검출"이라고 판정했을까요?
+2. **이중 검증을 사용하니** 몇 건의 오탐이 줄었나요?
+3. **임계값을 더 낮추면** 민감도는 올라가지만 오탐이 늘 수 있습니다. 어떤 값이 적절할까요?
+
+:::note[정밀도와 재현율]
+오탐을 줄이면(정밀도 향상) 진짜 위험을 놓칠 수 있고(재현율 하락), 민감하게 반응하면(재현율 향상) 오탐이 늘어납니다(정밀도 하락). 이 균형을 맞추는 것이 센서 시스템 설계의 핵심입니다.
 :::
 
 ---
 
-### 정리 (40-50분)
+{/* 섹션 G: 마무리 */}
 
-<Mermaid client:load chart={`
-graph LR
-    subgraph W3["3차시 — 기본 검출기"]
-        A1["센서 1개<br/>MQ2"]
-        A2["출력 1개<br/>LED"]
-        A3["단일 임계값"]
-        A4["오탐율 높음"]
-    end
-    subgraph W12["12차시 — 풀버전 검출기"]
-        B1["센서 2개<br/>MQ2 + SCD30"]
-        B2["출력 2개<br/>OLED + LED Stick"]
-        B3["이중 검증"]
-        B4["오탐율 낮음"]
-        B5["검출 로그"]
-    end
-    W3 ==>|엔지니어링<br/>발전| W12
-    style W3 fill:#fff8e1,stroke:#ffa000
-    style W12 fill:#e8f5e9,stroke:#2e7d32
-`} caption="3차시 vs 12차시 비교 — 같은 문제를 더 정교하게 해결하는 것이 엔지니어링의 발전" />
+## 마무리
 
-| 항목 | 3차시 (기본) | 12차시 (풀버전) |
-|------|-------------|----------------|
-| 센서 | MQ2 1개 | MQ2 + SCD30 |
-| 검증 | 단일 임계값 | 이중 검증 |
-| 오탐율 | 높음 | 낮음 |
-| 화면 | LED만 | OLED + LED |
-| 기록 | 없음 | 검출 로그 |
-| 부품 수 | 2개 | 4개 |
-| 난이도 | ★★☆ | ★★★ |
+### 오늘 배운 것
 
-:::caution[핵심 정리]
-같은 문제를 더 정교하게 해결하는 것이 엔지니어링의 발전입니다! 센서를 늘리고, 검증 로직을 강화하고, 사용자에게 정보를 보여주고, 기록을 남기는 것 -- 이 모든 과정이 실제 제품을 만드는 과정과 동일합니다.
+- **센서 퓨전**: 서로 다른 원리의 센서 두 개(ADC + I2C)를 조합하여 오탐을 줄이는 이중 검증 로직을 설계했습니다.
+- **4부품 통합**: MQ2, SCD30, OLED, RGB LED Stick 네 개의 부품을 하나의 시스템으로 연결하고 제어했습니다.
+- **자동 보정**: 환경마다 다른 CO2 기준값을 시작 시 자동으로 측정하여 보정하는 방법을 배웠습니다.
+- **상태 기록**: 검출 횟수를 누적 기록하여 증거를 남기는 로그 개념을 경험했습니다.
+
+### 다음 시간 미리보기
+
+:::tip[13차시 "음성 제어 환경 모니터"]
+다음 시간에는 **음성 인식 센서**를 사용합니다. 말로 명령하면 OLED 화면이 전환되는 스마트 모니터를 만듭니다. ADC, I2C, UART 세 가지 통신 방식을 모두 경험하는 마지막 프로젝트입니다.
 :::
 
 ---
 
-## 코드 파일 목록
+{/* 섹션 H: 체크리스트 */}
 
-| 파일명 | 설명 | 난이도 |
-|--------|------|--------|
-| `step1_dual_sensor.py` | MQ2 + SCD30 동시 읽기 비교 | ★★☆ |
-| `step2_dual_detector.py` | 이중 검증 검출기 풀버전 | ★★★ |
+## 자기 점검 체크리스트
+
+- [ ] 4개 부품(MQ2, SCD30, OLED, LED Stick)을 올바른 포트에 연결했다
+- [ ] 기본 코드를 실행하고 MQ2와 CO2 값을 동시에 확인했다
+- [ ] 손소독제와 입김의 반응 차이를 관찰했다
+- [ ] 이중 검증 로직(4가지 판정)을 이해했다
+- [ ] (도전) 풀버전 코드를 실행하고 OLED + LED 경보를 확인했다
+- [ ] (도전) 이중 검증 결과표를 작성하고 오탐 분석을 했다

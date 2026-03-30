@@ -1,138 +1,146 @@
 ---
-title: "8차시: 절전형 가스 경보기 – PIR + MQ2 + LED Stick"
-description: "상태 머신 설계로 사람이 있을 때만 가스를 측정하는 절전형 경보기를 만들어 배터리 수명을 극대화합니다."
+title: "8차시: 절전형 가스 경보기"
+description: "PIR, MQ2, LED Strip 3개 부품을 조합하고, 상태 머신으로 SLEEP-ACTIVE-ALERT 모드를 전환하는 절전형 경보기를 만듭니다."
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 import Mermaid from '../../../components/Mermaid';
+import GroveShieldMap from '../../../components/grove/GroveShieldMap';
+import GroveConnectorTip from '../../../components/grove/GroveConnectorTip';
+import VirtualWiring from '../../../components/grove/VirtualWiring';
+
+{/* 섹션 A: 헤더 */}
 
 <p style="color: var(--sl-color-gray-3); margin-bottom: 0.25rem;">인피컴 프로젝트 &gt; 센서 조합과 시스템 &gt; 8차시</p>
 
-# 절전형 가스 경보기 – PIR + MQ2 + LED Stick
+# 절전형 가스 경보기
 
-## 기본 정보
+> **오늘의 질문:** "24시간 돌아가는 경보기, 배터리가 금방 닳지 않을까? 더 똑똑한 방법은 없을까?"
 
-| 항목 | 내용 |
-|------|------|
-| 주제 | 사람이 있을 때만 가스를 측정하는 절전형 경보기 |
-| 시간 | 50분 (1교시) |
-| 형태 | 교사 시연 + 모둠 체험 (PIR 1개 + MQ2/LED 20세트 활용) |
-| 준비물 | Pico 2 WH + Grove Shield, Grove PIR 모션 센서, Grove MQ2 가스 센서, Grove RGB LED Stick, USB 케이블, AA 배터리홀더 |
-| 선수학습 | 3차시 (MQ2+LED 통합), 5차시 (PIR) |
-
-## 학습목표
-
-1. 상태 머신(state machine) 개념으로 시스템 동작을 설계할 수 있다
-2. 절전(sleep)과 활성(active) 모드 전환 로직을 구현할 수 있다
-3. 3개 부품을 통합한 시스템을 설계하고 구현할 수 있다
-
-## 50분 타임라인
-
-```
-[도입: 5분]
-└─ 00-05분: "배터리 경보기, 얼마나 오래 가야 할까?"
-
-[실습 1: 15분] 상태 머신 설계
-├─ 05-12분: 상태 다이어그램 그리기
-└─ 12-20분: step1 – 상태 전환 기본 코드
-
-[실습 2: 20분] 절전형 경보기 구현
-├─ 20-30분: step2 – PIR로 깨우기 + MQ2 측정
-└─ 30-40분: step3 – 배터리 구동 + LED 상태 표시
-
-[정리: 10분]
-├─ 40-45분: 배터리 수명 비교 토의
-└─ 45-50분: 정리
-```
+<p style="color: var(--sl-color-gray-3);">
+50분 | PIR 모션 센서 + MQ2 가스 센서 + RGB LED Stick | 난이도 ●●●●○
+</p>
 
 ---
 
-## 상세 수업 진행
+{/* 섹션 B: 준비물 */}
 
-### 도입 (00-05분)
+## 준비물
 
-**[강의 스크립트]**
+| 준비물 | 설명 |
+|--------|------|
+| Raspberry Pi Pico 2 WH | MicroPython이 동작하는 마이크로컨트롤러입니다. |
+| Grove Shield for Pi Pico | Pico 위에 올려 꽂는 확장 보드입니다. |
+| Grove 케이블 (4핀) x 3 | 센서와 Shield를 연결하는 케이블입니다. 오늘은 3개가 필요합니다. |
+| Grove mini PIR 모션 센서 | 적외선 변화로 움직임을 감지하는 디지털 센서입니다. 사람이 있는지 확인하는 용도로 사용합니다. |
+| Grove MQ2 가스 센서 | 연기, LPG, 알코올 등의 가스를 감지하는 아날로그 센서입니다. 가스 농도에 따라 0~65535 범위의 값을 출력합니다. |
+| Grove RGB LED Stick (10 LED) | 10개의 풀컬러 LED가 달린 스틱입니다. 시스템 상태를 색상으로 표시합니다. |
+| Micro USB 케이블 | Pico와 컴퓨터를 연결하여 전원을 공급하고 코드를 전송합니다. |
 
-선생님: "3차시에서 만든 전자담배 검출기, 기억나죠? 잘 작동하는데 한 가지 문제가 있어요. 24시간 계속 측정하면 배터리가 금방 닳아요."
+### 연결 방법
 
-선생님: "실제 화장실에 설치한다고 생각해보세요. 밤새 아무도 안 오는데 센서가 계속 돌면 낭비죠. 사람이 왔을 때만 측정하면?"
+PIR을 **D18 포트**에, MQ2를 **A0 포트**에, RGB LED Stick을 **D16 포트**에 연결하세요.
 
-#### 절전 vs 항상측정 비교
-
-<Mermaid client:load chart={`
-gantt
-    title 배터리 소모 비교 (24시간)
-    dateFormat HH:mm
-    axisFormat %H:%M
-
-    section 항상 측정
-    센서 + LED 활성 (8시간 소모) :active, always1, 00:00, 8h
-
-    section 절전형
-    대기       :done, sleep1, 00:00, 3h
-    감지+측정  :active, act1, 03:00, 30m
-    대기       :done, sleep2, 03:30, 5h
-    감지+측정  :active, act2, 08:30, 30m
-    대기       :done, sleep3, 09:00, 6h
-    감지+측정  :active, act3, 15:00, 30m
-    대기       :done, sleep4, 15:30, 8h30m
-`} caption="절전형은 필요할 때만 활성화하여 배터리 수명을 약 9배 연장 (8시간 → 72시간)" />
-
-```
-항상 측정:  ████████████████████████  (배터리 8시간)
-절전형:     ░░░░██░░░░░░██░░░░░██░░  (배터리 72시간!)
-            ↑    ↑       ↑      ↑
-           대기  감지    대기   감지
-```
-
-선생님: "이걸 가능하게 하는 게 '상태 머신'이라는 설계 방법이에요."
-
-### 실습 1: 상태 머신 설계 (05-20분)
-
-#### 상태 다이어그램 (05-12분)
-
-**[시각 자료]**
-
-<Mermaid client:load chart={`
-stateDiagram-v2
-    [*] --> SLEEP
-
-    SLEEP --> ACTIVE: 움직임 감지<br/>(PIR = 1)
-    ACTIVE --> SLEEP: 10초간 무감지<br/>(타임아웃)
-    ACTIVE --> ALERT: 가스 감지!<br/>(값 > 35000)
-    ALERT --> ACTIVE: 가스 해소<br/>(값 < 20000)
-
-    state SLEEP {
-        [*] --> 절전대기
-        절전대기: LED 1개만 약한 파랑
-        절전대기: PIR만 체크 (0.5초 간격)
-        절전대기: 가스 센서 미사용
-    }
-
-    state ACTIVE {
-        [*] --> 측정중
-        측정중: LED 초록~노랑 그라데이션
-        측정중: MQ2 가스 측정 활성
-        측정중: 타이머 카운트 중
-    }
-
-    state ALERT {
-        [*] --> 경보발령
-        경보발령: LED 빨강 깜빡임
-        경보발령: 가스 해소 대기
-    }
-`} caption="절전형 가스 경보기 상태 다이어그램 – SLEEP, ACTIVE, ALERT 3가지 상태 전환" />
-
-선생님: "상태가 세 가지예요. SLEEP(절전), ACTIVE(측정 중), ALERT(경보). 각 상태에서 어떤 조건이 되면 다른 상태로 '전환'돼요. 이걸 상태 머신이라고 합니다."
-
-선생님: "게임 캐릭터 생각해보세요. 대기→이동→공격→피격→사망. 각 상태에서 어떤 입력이 오면 다음 상태로 바뀌잖아요? 같은 개념이에요."
-
-:::note[상태 머신이란?]
-상태 머신(State Machine)은 시스템이 가질 수 있는 **상태**와 상태 간의 **전환 조건**을 정의하는 설계 방법입니다. 자판기, 신호등, 게임 캐릭터 등 일상의 많은 시스템이 상태 머신으로 설계됩니다.
+:::tip[3개 부품 동시 연결]
+오늘은 입력 2개(PIR + MQ2) + 출력 1개(LED)를 동시에 사용합니다. 각 부품이 서로 다른 종류의 포트(디지털, 아날로그, 디지털)를 사용하므로 충돌 없이 연결할 수 있습니다.
 :::
 
-#### 상태 전환 기본 코드 (12-20분)
+:::note[MQ2 예열 시간]
+MQ2 가스 센서는 전원을 켠 후 1~2분간 예열이 필요합니다. 예열 중에는 값이 불안정할 수 있으니 잠시 기다린 후 테스트하세요.
+:::
 
-**[코드: step1_state_machine.py]**
+### 보드 포트 맵
+
+아래 보드에서 **D18**, **A0**, **D16** 포트의 위치를 확인하세요.
+
+<GroveShieldMap
+  client:load
+  activePort="D18"
+  connectedSensors={[
+    { port: 'D18', sensorName: 'PIR 모션 센서' },
+    { port: 'A0', sensorName: 'MQ2 가스 센서' },
+    { port: 'D16', sensorName: 'RGB LED Stick' },
+  ]}
+/>
+
+<GroveConnectorTip client:load />
+
+### 연결 연습
+
+센서 카드를 클릭한 후, 보드의 올바른 포트를 클릭하여 연결해보세요.
+
+<VirtualWiring
+  client:load
+  title="8차시: PIR + MQ2 + LED Stick 연결하기"
+  sensors={[
+    { id: 'pir', name: 'PIR 모션 센서', correctPort: 'D18', portType: '디지털', hint: 'PIR은 디지털 포트 D18에 연결합니다' },
+    { id: 'mq2', name: 'MQ2 가스 센서', correctPort: 'A0', portType: '아날로그', hint: 'MQ2는 아날로그 포트 A0에 연결합니다' },
+    { id: 'led-stick', name: 'RGB LED Stick', correctPort: 'D16', portType: '디지털', hint: 'NeoPixel LED는 디지털 포트 D16에 연결합니다' },
+  ]}
+/>
+
+---
+
+{/* 섹션 C: 단계별 활동 가이드 */}
+
+## 활동 가이드
+
+### Step 1. 연결 + 상태 머신 이해하기 (10분)
+
+1. **PIR을 D18, MQ2를 A0, LED Stick을 D16에 연결합니다.**
+2. Micro USB 케이블로 컴퓨터와 연결합니다.
+3. 아래 상태 다이어그램을 보며 시스템 동작을 이해합니다.
+
+**상태 머신**이란 시스템이 가질 수 있는 상태를 정의하고, 어떤 조건에서 다른 상태로 전환되는지 설계하는 방법입니다.
+
+우리 경보기의 상태는 세 가지입니다:
+- **SLEEP** (절전): LED 1개만 약한 파랑. 가스 측정 안 함. 배터리 절약.
+- **ACTIVE** (측정 중): LED 초록~노랑. 가스를 계속 측정.
+- **ALERT** (경보): LED 빨강 깜빡임. 가스가 위험 수준.
+
+:::note[게임 캐릭터와 같은 개념]
+게임 캐릭터를 생각해보세요. 대기 -> 이동 -> 공격 -> 피격. 각 상태에서 특정 입력이 오면 다음 상태로 바뀝니다. 상태 머신은 같은 개념을 코드로 구현하는 것입니다.
+:::
+
+### Step 2. 상태 전환 테스트 (10분)
+
+1. Thonny를 열고 아래 **기본 코드**를 입력합니다.
+2. 실행하면 LED 1개가 약한 파란색으로 켜집니다 (SLEEP 상태).
+3. **손을 흔들어보세요.** LED가 초록색으로 바뀌면 ACTIVE 상태입니다.
+4. **손소독제를 센서 가까이 대보세요.** LED가 빨간색으로 바뀌면 ALERT 상태입니다.
+
+### Step 3. 절전형 경보기 완성 (20분)
+
+1. **도전 코드**를 입력합니다.
+2. 다음 시나리오를 순서대로 테스트하세요:
+   - 가만히 있기 -> SLEEP 유지 (약한 파랑 1개)
+   - 손 흔들기 -> ACTIVE 전환 (초록)
+   - 10초간 가만히 있기 -> 자동 SLEEP 복귀 (파랑 1개)
+   - 다시 손 흔들기 -> ACTIVE
+   - 손소독제 가까이 대기 -> ALERT (빨강 깜빡임)
+   - 손소독제 치우기 -> ACTIVE 복귀
+
+3. `TIMEOUT_MS` 값을 바꿔보며 적절한 절전 전환 시간을 찾아보세요.
+
+### Step 4. 배터리 수명 토론 (10분)
+
+모둠에서 다음을 이야기해보세요.
+
+1. **"항상 측정"과 "절전형"의 배터리 수명 차이**를 추정해보세요.
+2. **"SLEEP에서 PIR만 체크하면 왜 절전이 될까?"** LED를 끄고 가스 센서를 안 읽는 것이 어떤 차이를 만드나요?
+3. **"이 패턴을 다른 곳에 적용한다면?"** 예: 자판기, 신호등, 스마트 가전 등
+
+---
+
+{/* 섹션 D: 코드 예시 */}
+
+## 코드
+
+<Tabs>
+  <TabItem label="기본 코드">
+
+### 기본 코드
+
 ```python
 # === 상태 머신 기본 구조 ===
 # 세 가지 상태 전환 패턴 학습
@@ -181,36 +189,42 @@ show_sleep()
 while True:
     if current_state == STATE_SLEEP:
         if pir.value() == 1:
-            print("SLEEP → ACTIVE (움직임 감지)")
+            print("SLEEP -> ACTIVE (움직임 감지)")
             current_state = STATE_ACTIVE
             show_active()
 
     elif current_state == STATE_ACTIVE:
         value = gas.read_u16()
         if value > 30000:  # 가스 감지
-            print(f"ACTIVE → ALERT (가스: {value})")
+            print(f"ACTIVE -> ALERT (가스: {value})")
             current_state = STATE_ALERT
             show_alert()
 
     elif current_state == STATE_ALERT:
         value = gas.read_u16()
         if value < 20000:  # 가스 해소
-            print("ALERT → ACTIVE (가스 해소)")
+            print("ALERT -> ACTIVE (가스 해소)")
             current_state = STATE_ACTIVE
             show_active()
 
     time.sleep(0.5)
 ```
 
-선생님: "보세요. if-elif-elif로 현재 상태를 확인하고, 조건에 따라 상태를 전환해요. 이 패턴이 상태 머신의 핵심이에요!"
+### 줄별 해설
 
----
+| 줄 | 코드 | 설명 |
+|----|------|------|
+| 15-17 | `STATE_SLEEP`, `STATE_ACTIVE`, `STATE_ALERT` | 시스템이 가질 수 있는 세 가지 상태를 문자열로 정의합니다. |
+| 19 | `current_state = STATE_SLEEP` | 시작 상태를 SLEEP(절전)으로 설정합니다. |
+| 41 | `if current_state == STATE_SLEEP:` | 현재 상태를 확인하고, 그 상태에서의 동작과 전환 조건을 실행합니다. |
+| 42 | `if pir.value() == 1:` | SLEEP 상태에서 움직임이 감지되면 ACTIVE로 전환합니다. |
+| 48 | `if value > 30000:` | ACTIVE 상태에서 가스가 높으면 ALERT로 전환합니다. 이 임계값은 환경에 따라 조절하세요. |
 
-### 실습 2: 절전형 경보기 (20-40분)
+  </TabItem>
+  <TabItem label="도전 코드">
 
-#### 완성 코드 (20-35분)
+### 도전 코드: 절전형 경보기 완성
 
-**[코드: step2_power_save.py]**
 ```python
 # === 절전형 가스 경보기 ===
 # PIR 감지 시에만 MQ2 측정, 타임아웃 시 절전 복귀
@@ -237,8 +251,9 @@ STATE_ALERT  = 2
 state = STATE_SLEEP
 last_motion = 0
 
-# --- 이동 평균 ---
+# --- 이동 평균 (노이즈 제거) ---
 def read_avg(sensor, n=10):
+    """센서 값을 n번 읽어 평균을 구합니다"""
     total = 0
     for _ in range(n):
         total += sensor.read_u16()
@@ -262,6 +277,7 @@ def led_active(gas_val):
     np.write()
 
 def led_alert_blink():
+    """빨강 깜빡임"""
     for i in range(NUM_LEDS):
         np[i] = (255, 0, 0)
     np.write()
@@ -286,7 +302,7 @@ while True:
     if state == STATE_SLEEP:
         if motion:
             state = STATE_ACTIVE
-            print("💤→👁️ 활성화!")
+            print("SLEEP -> ACTIVE (활성화!)")
         else:
             time.sleep(0.5)  # 절전: 느리게 체크
             continue
@@ -297,14 +313,14 @@ while True:
 
         if gas_val >= GAS_ALERT:
             state = STATE_ALERT
-            print(f"👁️→🚨 경보! (가스: {gas_val})")
+            print(f"ACTIVE -> ALERT (가스: {gas_val})")
 
         # 타임아웃: 일정 시간 움직임 없으면 절전
         elapsed = time.ticks_diff(now, last_motion)
         if elapsed > TIMEOUT_MS:
             state = STATE_SLEEP
             led_sleep()
-            print("👁️→💤 절전 복귀")
+            print("ACTIVE -> SLEEP (절전 복귀)")
 
     elif state == STATE_ALERT:
         led_alert_blink()
@@ -312,84 +328,120 @@ while True:
 
         if gas_val < GAS_WARN:
             state = STATE_ACTIVE
-            print(f"🚨→👁️ 경보 해제 (가스: {gas_val})")
+            print(f"ALERT -> ACTIVE (경보 해제, 가스: {gas_val})")
 
     print(f"[{['SLEEP','ACTIVE','ALERT'][state]}] motion={motion}")
     time.sleep(0.3)
 ```
 
-**[수업 장면]**
+:::note[코드 읽어보기]
+`continue`는 루프의 나머지를 건너뛰고 처음으로 돌아가는 명령입니다. SLEEP 상태에서는 가스 측정이 필요 없으니 `continue`로 바로 다음 루프로 갑니다. `read_avg()` 함수는 센서 값을 10번 읽어 평균을 구해 **노이즈를 줄입니다**. `led_active()`는 가스 농도에 비례해 초록에서 노랑으로 LED 색상이 서서히 변합니다.
+:::
 
-LED가 약한 파란 불 하나만 켜져 있다.
-선생님: "지금 절전 모드예요. 센서 앞에서 움직여보세요."
-(학생이 손 흔들자 초록색으로 전환)
-선생님: "활성화됐죠? 이제 가스를 측정하기 시작해요."
-(손소독제를 가까이 대자 LED가 노란색 → 빨간 깜빡임으로)
-학생: "경보다!"
-(손소독제 치우고, 10초간 가만히 있으면)
-선생님: "가스 해소 → 활성 → 10초 무감지 → 다시 절전!"
-학생: "혼자 알아서 꺼져요!"
+  </TabItem>
+</Tabs>
 
-**[예상 Q&A]**
+---
 
-Q: "continue가 뭐예요?"
-A: "while 루프의 나머지를 건너뛰고 처음으로 돌아가라는 뜻이에요. 절전 모드에서는 가스 측정을 안 해도 되니까, continue로 바로 다음 루프로 가는 거예요."
+{/* 섹션 E: 와우 모먼트 */}
 
-Q: "실제로 배터리가 오래 가나요?"
-A: "Pico 자체를 deep sleep 모드로 넣으면 더 절약되지만, 오늘은 소프트웨어 수준의 절전이에요. 그래도 LED를 끄고 센서를 안 읽는 것만으로도 상당한 차이가 나요."
+## 잠깐, 방금 무슨 일이 일어난 걸까요?
 
-:::tip[continue 키워드]
-`continue`는 while 루프에서 **나머지 코드를 건너뛰고** 루프의 처음으로 돌아갑니다. 절전 모드에서는 가스 측정이 불필요하므로, `continue`로 바로 다음 PIR 체크로 돌아가는 것이 효율적입니다.
+여러분이 방금 한 일을 다시 생각해보세요.
+
+**3개의 부품**이 하나의 시스템으로 통합되었습니다:
+- PIR이 **"사람이 있나?"**를 판단하고
+- MQ2가 **"가스가 위험한가?"**를 측정하고
+- LED가 **"지금 상태가 뭔가?"**를 눈으로 보여주고
+- **상태 머신**이 이 모든 것을 **논리적으로 연결**했습니다.
+
+센서 하나를 읽는 것에서 시작해서, 여러 센서의 데이터를 조합하고, 상태에 따라 다르게 동작하는 **시스템**을 만든 것입니다. 실제 스마트 빌딩의 화재 경보기, 공장의 안전 시스템, 자동차의 에어백 시스템 모두 이 상태 머신 패턴으로 설계됩니다.
+
+### 상태 머신 다이어그램
+
+<Mermaid chart={`stateDiagram-v2
+    [*] --> SLEEP
+    SLEEP --> ACTIVE : 움직임 감지 (PIR=1)
+    ACTIVE --> SLEEP : 10초간 무감지
+    ACTIVE --> ALERT : 가스 위험 수준
+    ALERT --> ACTIVE : 가스 해소
+
+    state SLEEP {
+        [*] --> 절전모드
+        절전모드 : LED 1개 약한 파랑
+        절전모드 : 가스 측정 안 함
+        절전모드 : 0.5초 간격 PIR만 체크
+    }
+    state ACTIVE {
+        [*] --> 측정중
+        측정중 : LED 초록~노랑
+        측정중 : 가스 연속 측정
+        측정중 : 타임아웃 카운트
+    }
+    state ALERT {
+        [*] --> 경보
+        경보 : LED 빨강 깜빡임
+        경보 : 가스 계속 모니터링
+    }
+`} />
+
+---
+
+{/* 섹션 F: 데이터/통계 활동 */}
+
+## 데이터로 생각하기
+
+절전 효과를 정량적으로 비교해봅시다.
+
+#### 전력 소비 비교표
+
+| 항목 | 항상 측정 방식 | 절전형 방식 |
+|------|---------------|------------|
+| LED 상태 | 항상 10개 켜짐 | SLEEP: 1개만 약하게 |
+| 가스 센서 | 항상 읽기 | SLEEP: 안 읽음 |
+| 루프 간격 | 0.3초 | SLEEP: 0.5초 |
+| 하루 활성 시간 (추정) | 24시간 | ( )시간 |
+| 예상 배터리 수명 | 8시간 | ( )시간 |
+
+1. 화장실에 설치한다고 가정할 때, **하루 중 사람이 실제로 있는 시간**은 얼마나 될까요?
+2. SLEEP 모드에서 절약되는 전력 요소 3가지를 적어보세요.
+3. **"항상 측정" 대비 배터리 수명이 몇 배 늘어날지** 추정해보세요.
+
+:::note[실제 IoT 절전 기법]
+오늘 구현한 것은 소프트웨어 수준의 절전입니다. 실제 IoT 제품에서는 마이크로컨트롤러 자체를 **deep sleep** 모드로 넣어 전류 소모를 마이크로암페어(uA) 수준까지 낮춥니다. PIR 같은 외부 인터럽트로 깨우는 방식을 사용하면 배터리로 수개월~수년간 동작하는 제품을 만들 수 있습니다.
 :::
 
 ---
 
-### 정리 (40-50분)
+{/* 섹션 G: 마무리 */}
 
-```
-상태 머신 패턴 정리:
+## 마무리
 
-1. 상태를 정의한다 (SLEEP, ACTIVE, ALERT)
-2. 각 상태에서의 동작을 정한다 (LED 표시, 센서 읽기)
-3. 상태 전환 조건을 정한다 (PIR 감지, 가스 임계값, 타임아웃)
+### 오늘 배운 것
 
-이 패턴은 어디서나 쓰여요:
-• 자판기: 대기 → 투입 → 선택 → 배출
-• 신호등: 초록 → 노랑 → 빨강
-• 게임: 대기 → 진행 → 승리/패배
-```
+- **상태 머신 설계**: SLEEP, ACTIVE, ALERT 세 가지 상태와 전환 조건을 설계했습니다. 이 패턴은 자판기, 신호등, 게임 등 어디서나 사용됩니다.
+- **3개 부품 통합**: PIR(디지털 입력) + MQ2(아날로그 입력) + LED(디지털 출력)를 하나의 시스템으로 조합했습니다.
+- **절전 로직**: 사람이 없을 때 센서 측정을 멈추고 LED를 최소화하여 배터리를 절약하는 방법을 구현했습니다.
+- **이동 평균**: 센서 노이즈를 줄이기 위해 여러 번 읽어 평균을 구하는 `read_avg()` 기법을 사용했습니다.
 
-<Mermaid client:load chart={`
-graph LR
-    subgraph 자판기
-        V1["대기"] --> V2["투입"]
-        V2 --> V3["선택"]
-        V3 --> V4["배출"]
-        V4 --> V1
-    end
+### 상태 머신 패턴 정리
 
-    subgraph 신호등
-        T1["🟢 초록"] --> T2["🟡 노랑"]
-        T2 --> T3["🔴 빨강"]
-        T3 --> T1
-    end
+이 패턴을 기억하세요. 앞으로 어떤 시스템을 만들 때도 적용할 수 있습니다:
 
-    subgraph 게임
-        G1["대기"] --> G2["진행"]
-        G2 --> G3["승리"]
-        G2 --> G4["패배"]
-    end
-
-    style 자판기 fill:#E3F2FD,stroke:#1565C0
-    style 신호등 fill:#FFF9C4,stroke:#F9A825
-    style 게임 fill:#E8F5E9,stroke:#2E7D32
-`} caption="상태 머신 패턴의 다양한 적용 사례 – 자판기, 신호등, 게임 모두 같은 원리" />
+1. **상태를 정의한다** (예: SLEEP, ACTIVE, ALERT)
+2. **각 상태에서의 동작을 정한다** (예: LED 표시, 센서 읽기 여부)
+3. **상태 전환 조건을 정한다** (예: PIR 감지, 가스 임계값, 타임아웃)
 
 ---
 
-## 코드 파일 목록
+{/* 섹션 H: 체크리스트 */}
 
-| 파일명 | 설명 | 난이도 |
-|--------|------|--------|
-| `step1_state_machine.py` | 상태 머신 기본 구조 | ★★☆ |
-| `step2_power_save.py` | 절전형 경보기 완성 | ★★★ |
+## 자기 점검 체크리스트
+
+- [ ] PIR을 D18, MQ2를 A0, LED Stick을 D16에 연결했다
+- [ ] 기본 코드로 SLEEP -> ACTIVE -> ALERT 상태 전환을 확인했다
+- [ ] 상태 머신 다이어그램을 이해했다
+- [ ] 도전 코드로 자동 절전 복귀(타임아웃)를 확인했다
+- [ ] TIMEOUT_MS 값을 바꿔보며 적절한 절전 시간을 탐색했다
+- [ ] 전력 소비 비교표를 작성했다
+- [ ] (도전) 상태 머신 패턴을 다른 상황에 적용하는 아이디어를 생각해봤다

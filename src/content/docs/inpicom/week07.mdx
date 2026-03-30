@@ -1,122 +1,138 @@
 ---
-title: "7차시: CO2 환기 알리미 – SCD30 + LED Stick + OLED"
-description: "SCD30 센서로 CO2 농도를 측정하고, LED 색상 경보와 OLED 대시보드로 실시간 환기 모니터링 시스템을 만듭니다."
+title: "7차시: CO2 환기 알리미"
+description: "SCD30 센서로 CO2 농도를 측정하고, LED 색상 경보와 OLED 대시보드로 환기 시점을 알려주는 시스템을 만듭니다."
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 import Mermaid from '../../../components/Mermaid';
+import GroveShieldMap from '../../../components/grove/GroveShieldMap';
+import GroveConnectorTip from '../../../components/grove/GroveConnectorTip';
+import VirtualWiring from '../../../components/grove/VirtualWiring';
+
+{/* 섹션 A: 헤더 */}
 
 <p style="color: var(--sl-color-gray-3); margin-bottom: 0.25rem;">인피컴 프로젝트 &gt; 센서 조합과 시스템 &gt; 7차시</p>
 
-# CO2 환기 알리미 – SCD30 + LED Stick + OLED
+# CO2 환기 알리미
 
-## 기본 정보
+> **오늘의 질문:** "교실 환기, 언제 해야 할까? 코가 아닌 데이터가 알려줄 수 있을까?"
 
-| 항목 | 내용 |
-|------|------|
-| 주제 | CO2 농도 측정 + LED 경보 + OLED 수치 표시 |
-| 시간 | 50분 (1교시) |
-| 형태 | 교사 시연 + 모둠 순환 체험 (부품 1세트) |
-| 준비물 | Pico 2 WH + Grove Shield, Grove SCD30 (CO2+온습도), Grove RGB LED Stick, Grove OLED 0.96", USB 케이블 |
-| 선수학습 | 3차시 (임계값/조건문), 4차시 (I2C/OLED) |
-
-## 학습목표
-
-1. SCD30 센서로 CO2 농도를 측정하고 ppm 단위를 이해할 수 있다
-2. CO2 농도에 따른 환기 판단 기준을 설정할 수 있다
-3. OLED + LED 이중 출력으로 실용적인 모니터링 시스템을 만들 수 있다
-
-## 50분 타임라인
-
-```
-[도입: 5분]
-└─ 00-05분: "교실 환기, 언제 해야 할까?"
-
-[실습 1: 15분] SCD30 센서
-├─ 05-12분: 회로 연결 + step1 CO2 읽기
-└─ 12-20분: 입김 테스트 + CO2 ppm 기준 설명
-
-[실습 2: 20분] 환기 알리미 제작
-├─ 20-30분: step2 – LED 색상 경보
-└─ 30-40분: step3 – OLED 대시보드 + LED 통합
-
-[정리: 10분]
-├─ 40-45분: 교실 실시간 모니터링 체험
-└─ 45-50분: 정리 + 실제 활용 방안 토의
-```
+<p style="color: var(--sl-color-gray-3);">
+50분 | SCD30 CO2 센서 + RGB LED Stick + OLED | 난이도 ●●●○○
+</p>
 
 ---
 
-## 상세 수업 진행
+{/* 섹션 B: 준비물 */}
 
-### 도입 (00-05분)
+## 준비물
 
-**[강의 스크립트]**
+| 준비물 | 설명 |
+|--------|------|
+| Raspberry Pi Pico 2 WH | MicroPython이 동작하는 마이크로컨트롤러입니다. |
+| Grove Shield for Pi Pico | Pico 위에 올려 꽂는 확장 보드입니다. |
+| Grove 케이블 (4핀) x 3 | 센서와 Shield를 연결하는 케이블입니다. 오늘은 3개가 필요합니다. |
+| Grove SCD30 (CO2+온습도) | CO2 농도를 **ppm 단위**로 정확히 측정하는 센서입니다. 온도와 습도도 함께 읽을 수 있습니다. I2C 방식(주소 0x61)으로 통신합니다. |
+| Grove RGB LED Stick (10 LED) | 10개의 풀컬러 LED가 달린 스틱입니다. CO2 상태를 색상으로 보여줍니다. |
+| Grove OLED 0.96" | 128x64 해상도의 작은 화면입니다. CO2 수치와 상태를 텍스트와 막대 그래프로 표시합니다. I2C 방식(주소 0x3C)으로 통신합니다. |
+| Micro USB 케이블 | Pico와 컴퓨터를 연결하여 전원을 공급하고 코드를 전송합니다. |
 
-선생님: "코로나 이후로 '환기'가 중요해졌죠? 그런데 언제 창문을 열어야 하는지 어떻게 알 수 있을까요? 추운 겨울에 괜히 열었다가 추워지는 것도 싫잖아요."
+### 연결 방법
 
-선생님: "CO2 농도를 측정하면 됩니다! 사람이 숨 쉴 때 CO2가 나오니까, 교실에 사람이 많고 환기가 안 되면 CO2가 올라가요."
+SCD30을 **I2C1 포트**에, OLED를 **I2C0 포트**에, RGB LED Stick을 **D16 포트**에 연결하세요.
 
-```
-CO2 농도 기준 (ppm = parts per million):
-
-  400 ppm  │  실외 공기 (깨끗)
-  ──────────┤
- 1000 ppm  │  실내 기준 (여기까지 OK)
-  ──────────┤
- 1500 ppm  │  환기 필요! (졸리기 시작)
-  ──────────┤
- 2000 ppm  │  즉시 환기! (집중력 저하)
-  ──────────┤
- 5000 ppm  │  위험 (장시간 노출 금지)
-```
-
-선생님: "수업 중 졸린 게 꼭 선생님 수업이 재미없어서가 아닐 수도 있어요. CO2가 높아서 뇌에 산소가 부족한 거일 수 있거든요!"
-
----
-
-### 실습 1: SCD30 센서 (05-20분)
-
-#### 회로 연결 (05-12분)
-
-**[시각 자료: 연결도]**
-
-```
-Grove Shield
-
-  ┌──────────────────────────────────┐
-  │  [I2C-1]  [I2C-2]   [D16]      │
-  │    ↑         ↑         ↑        │
-  └────│─────────│─────────│────────┘
-       │         │         │
-  ┌────┴───┐ ┌──┴────┐ ┌──┴──────┐
-  │ SCD30  │ │ OLED  │ │RGB LED  │
-  │ (CO2)  │ │0.96"  │ │ Stick   │
-  │(0x61)  │ │(0x3C) │ │         │
-  └────────┘ └───────┘ └─────────┘
-```
-
-#### 3장치 I2C 구조
-
-<Mermaid client:load chart={`
-graph TB
-    PICO["Pico 2 WH<br/>(I2C Master)"] --- BUS["I2C 버스<br/>SDA(GP8) + SCL(GP9)"]
-    BUS --- SCD["SCD30<br/>CO2 센서<br/>주소: 0x61"]
-    BUS --- OLED["OLED 0.96&quot;<br/>디스플레이<br/>주소: 0x3C"]
-    PICO --- D16["GP16<br/>(디지털)"]
-    D16 --- LED["RGB LED Stick<br/>(NeoPixel)"]
-
-    style PICO fill:#E3F2FD,stroke:#1565C0
-    style BUS fill:#FFF9C4,stroke:#F9A825
-    style SCD fill:#E8F5E9,stroke:#2E7D32
-    style OLED fill:#F3E5F5,stroke:#7B1FA2
-    style LED fill:#FFCDD2,stroke:#D32F2F
-`} caption="3장치 연결 구조 – I2C 버스에 SCD30과 OLED, 디지털 핀에 LED Stick" />
-
-:::caution[교사 안내]
-SCD30은 I2C 주소 0x61입니다. `scd30.py` 드라이버를 Pico에 사전 업로드하세요. SCD30은 측정 주기가 2초이므로 `sleep(2)` 이상 필요합니다.
+:::tip[I2C 포트 2개 사용]
+오늘은 I2C 장치 2개(SCD30, OLED)를 사용합니다. 각각 다른 I2C 포트에 연결하면 주소 충돌 걱정 없이 동시에 사용할 수 있습니다. SCD30은 주소 0x61, OLED는 주소 0x3C으로 서로 다릅니다.
 :::
 
-**[코드: step1_co2_read.py]**
+:::note[SCD30 예열 시간]
+SCD30은 전원을 켠 후 처음 몇 회 측정값이 불안정할 수 있습니다. 약 30초 정도 기다리면 안정적인 값이 나옵니다. 측정 주기는 2초입니다.
+:::
+
+### 보드 포트 맵
+
+아래 보드에서 **I2C1**, **I2C0**, **D16** 포트의 위치를 확인하세요.
+
+<GroveShieldMap
+  client:load
+  activePort="I2C1"
+  connectedSensors={[
+    { port: 'I2C1', sensorName: 'SCD30 (CO2)' },
+    { port: 'I2C0', sensorName: 'OLED 0.96"' },
+    { port: 'D16', sensorName: 'RGB LED Stick' },
+  ]}
+/>
+
+<GroveConnectorTip client:load />
+
+### 연결 연습
+
+센서 카드를 클릭한 후, 보드의 올바른 포트를 클릭하여 연결해보세요.
+
+<VirtualWiring
+  client:load
+  title="7차시: SCD30 + OLED + LED Stick 연결하기"
+  sensors={[
+    { id: 'scd30', name: 'SCD30 (CO2)', correctPort: 'I2C1', portType: 'I2C', hint: 'SCD30은 I2C1 포트에 연결합니다' },
+    { id: 'oled', name: 'OLED 0.96"', correctPort: 'I2C0', portType: 'I2C', hint: 'OLED는 I2C0 포트에 연결합니다' },
+    { id: 'led-stick', name: 'RGB LED Stick', correctPort: 'D16', portType: '디지털', hint: 'NeoPixel LED는 디지털 포트 D16에 연결합니다' },
+  ]}
+/>
+
+---
+
+{/* 섹션 C: 단계별 활동 가이드 */}
+
+## 활동 가이드
+
+### Step 1. 연결하기 (5분)
+
+1. **SCD30 센서를 Grove 케이블로 I2C1 포트에 연결합니다.** (GP6=SDA, GP7=SCL)
+2. **OLED를 Grove 케이블로 I2C0 포트에 연결합니다.** (GP8=SDA, GP9=SCL)
+3. **RGB LED Stick을 D16 포트에 연결합니다.**
+4. **Micro USB 케이블로 컴퓨터와 연결합니다.**
+
+:::note[드라이버 파일 확인]
+SCD30 센서를 사용하려면 `scd30.py` 드라이버 파일이 Pico에 저장되어 있어야 합니다. OLED도 `ssd1306.py`가 필요합니다. 선생님의 안내에 따라 미리 업로드했는지 확인하세요.
+:::
+
+### Step 2. CO2 측정하기 (10분)
+
+1. Thonny를 열고 아래 **기본 코드**를 입력합니다.
+2. 실행 후 Shell에 CO2, 온도, 습도가 표시되는지 확인합니다.
+3. **입김 테스트**: 센서에 "후~" 불어보세요. CO2 값이 급상승하는 것을 관찰합니다.
+4. 10초 후 값이 서서히 내려오는 것을 확인합니다.
+
+:::note[CO2 ppm 기준]
+ppm은 "parts per million(백만분의 일)"입니다. 실외 깨끗한 공기는 약 400ppm, 실내 기준 상한은 1000ppm, 1500ppm이 넘으면 환기가 필요하고, 2000ppm 이상이면 집중력이 크게 저하됩니다.
+:::
+
+### Step 3. 환기 알리미 만들기 (20분)
+
+1. **도전 코드**를 입력합니다.
+2. 정상 상태에서 LED가 초록색이고 OLED에 "GOOD"이 표시되는지 확인합니다.
+3. 센서에 입김을 불어 CO2를 올려봅니다. LED가 노란색 -> 빨간색으로 바뀌는지, OLED 상태가 바뀌는지 관찰합니다.
+4. 임계값(`WARN`, `BAD`)을 조절하여 여러분 교실에 맞는 기준을 찾아보세요.
+
+### Step 4. 교실 모니터링 체험 (10분)
+
+환기 알리미를 교실 여러 곳에 놓아보며 CO2 농도를 비교하세요.
+
+1. 창문 가까운 곳 vs 창문에서 먼 곳
+2. 사람이 밀집된 곳 vs 빈 곳
+3. 창문을 열기 전 vs 열고 5분 후
+
+---
+
+{/* 섹션 D: 코드 예시 */}
+
+## 코드
+
+<Tabs>
+  <TabItem label="기본 코드">
+
+### 기본 코드
+
 ```python
 # === SCD30 CO2 센서 읽기 ===
 # CO2 농도(ppm), 온도, 습도 측정
@@ -125,120 +141,38 @@ from machine import I2C, Pin
 import scd30
 import time
 
-# --- I2C 설정 ---
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
+# --- I2C 설정 (I2C1 포트) ---
+i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 
 # --- SCD30 초기화 ---
 sensor = scd30.SCD30(i2c, addr=0x61)
 sensor.start_continous_measurement()
 
 print("=== CO2 모니터 시작 ===")
-print("SCD30 예열 중... (최초 몇 회 값이 불안정할 수 있음)")
+print("예열 중... (처음 몇 회 값이 불안정할 수 있습니다)")
 
 while True:
     if sensor.data_ready():
         co2, temp, humidity = sensor.read_measurement()
-        print(f"CO2: {co2:.0f} ppm | 온도: {temp:.1f}°C | 습도: {humidity:.1f}%")
+        print(f"CO2: {co2:.0f} ppm | 온도: {temp:.1f}C | 습도: {humidity:.1f}%")
     time.sleep(2)  # SCD30 측정 주기 = 2초
 ```
 
-선생님: "SCD30은 MQ2와 달라요. MQ2는 '뭔가 가스가 있다' 정도인데, SCD30은 정확히 CO2가 몇 ppm인지 숫자로 알려줘요. 가격도 10배 이상 비싸지만 그만큼 정확해요."
+### 줄별 해설
 
-**[수업 장면: 입김 테스트]**
+| 줄 | 코드 | 설명 |
+|----|------|------|
+| 8 | `I2C(1, sda=Pin(6), scl=Pin(7))` | I2C1 포트를 초기화합니다. SCD30은 I2C 통신으로 데이터를 보냅니다. |
+| 11 | `scd30.SCD30(i2c, addr=0x61)` | SCD30 센서 객체를 생성합니다. I2C 주소 0x61은 SCD30 고유 주소입니다. |
+| 12 | `start_continous_measurement()` | 연속 측정 모드를 시작합니다. 2초마다 자동으로 CO2, 온도, 습도를 측정합니다. |
+| 17 | `sensor.data_ready()` | 새 측정 데이터가 준비되었는지 확인합니다. 2초마다 True가 됩니다. |
+| 18 | `read_measurement()` | CO2(ppm), 온도(C), 습도(%) 세 값을 한 번에 읽습니다. |
 
-선생님: "센서에 '후~' 불어보세요."
-(CO2 값이 400 → 2000 이상으로 급상승)
-학생들: "와! 숫자가 확 올라간다!"
-선생님: "사람 숨에 CO2가 약 4만 ppm 들어있거든요. 입김 불면 센서 근처 농도가 확 올라가는 거예요."
-(10초 후 서서히 내려감)
-선생님: "MQ2로 했던 실험이랑 비슷하죠? 하지만 이번엔 'ppm'이라는 정확한 단위가 있어요."
+  </TabItem>
+  <TabItem label="도전 코드">
 
----
+### 도전 코드: OLED 대시보드 + LED 경보
 
-### 실습 2: 환기 알리미 제작 (20-40분)
-
-#### LED 색상 경보 (20-30분)
-
-#### CO2 환기 판단 플로우차트
-
-<Mermaid client:load chart={`
-flowchart TD
-    START["SCD30에서<br/>CO2 값 읽기"] --> CHECK1{"CO2 < 800?"}
-    CHECK1 -- "예" --> GOOD["🟢 양호<br/>LED: 어두운 초록"]
-    CHECK1 -- "아니오" --> CHECK2{"CO2 < 1000?"}
-    CHECK2 -- "예" --> OK["🟢 좋음<br/>LED: 밝은 초록"]
-    CHECK2 -- "아니오" --> CHECK3{"CO2 < 1500?"}
-    CHECK3 -- "예" --> WARN["🟡 주의<br/>LED: 노랑<br/>'쉬는 시간에 환기'"]
-    CHECK3 -- "아니오" --> BAD["🔴 환기 필요!<br/>LED: 빨강<br/>'지금 당장 창문 열기'"]
-
-    GOOD --> WAIT["2초 대기"]
-    OK --> WAIT
-    WARN --> WAIT
-    BAD --> WAIT
-    WAIT --> START
-
-    style GOOD fill:#C8E6C9,stroke:#388E3C
-    style OK fill:#A5D6A7,stroke:#2E7D32
-    style WARN fill:#FFF9C4,stroke:#F9A825
-    style BAD fill:#FFCDD2,stroke:#D32F2F
-`} caption="CO2 농도별 환기 판단 플로우차트 – 임계값에 따라 4단계 경보" />
-
-**[코드: step2_co2_led.py]**
-```python
-# === CO2 환기 알리미 – LED 경보 ===
-# CO2 농도에 따라 LED 색상 변경
-
-from machine import I2C, Pin
-from neopixel import NeoPixel
-import scd30
-import time
-
-# --- 하드웨어 ---
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
-sensor = scd30.SCD30(i2c, addr=0x61)
-sensor.start_continous_measurement()
-
-NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS)
-
-# --- CO2 임계값 (ppm) ---
-GOOD = 800       # 양호
-WARN = 1000      # 주의
-BAD  = 1500      # 환기 필요
-
-def set_all(r, g, b):
-    for i in range(NUM_LEDS):
-        np[i] = (r, g, b)
-    np.write()
-
-# --- 메인 루프 ---
-print("=== CO2 환기 알리미 ===")
-
-while True:
-    if sensor.data_ready():
-        co2, temp, hum = sensor.read_measurement()
-
-        if co2 < GOOD:
-            set_all(0, 50, 0)       # 🟢 양호
-            status = "양호"
-        elif co2 < WARN:
-            set_all(0, 100, 0)      # 🟢 좋음 (밝은 초록)
-            status = "좋음"
-        elif co2 < BAD:
-            set_all(255, 200, 0)    # 🟡 주의
-            status = "주의"
-        else:
-            set_all(255, 0, 0)      # 🔴 환기 필요!
-            status = "환기!"
-
-        print(f"CO2: {co2:.0f}ppm → {status}")
-
-    time.sleep(2)
-```
-
-#### OLED 대시보드 통합 (30-40분)
-
-**[코드: step3_co2_dashboard.py]**
 ```python
 # === CO2 환기 알리미 – 풀 대시보드 ===
 # OLED에 수치 + LED에 색상 경보
@@ -249,15 +183,21 @@ import ssd1306
 import scd30
 import time
 
-# --- 하드웨어 ---
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
-sensor = scd30.SCD30(i2c, addr=0x61)
+# --- 하드웨어 설정 ---
+# SCD30은 I2C1 (GP6, GP7)
+i2c1 = I2C(1, sda=Pin(6), scl=Pin(7))
+sensor = scd30.SCD30(i2c1, addr=0x61)
 sensor.start_continous_measurement()
-oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+
+# OLED는 I2C0 (GP8, GP9)
+i2c0 = I2C(0, sda=Pin(8), scl=Pin(9))
+oled = ssd1306.SSD1306_I2C(128, 64, i2c0)
+
+# LED Stick은 D16
 NUM_LEDS = 10
 np = NeoPixel(Pin(16), NUM_LEDS)
 
-# --- CO2 임계값 ---
+# --- CO2 임계값 (ppm) ---
 WARN = 1000
 BAD  = 1500
 
@@ -267,7 +207,7 @@ def set_all(r, g, b):
     np.write()
 
 def get_status(co2):
-    """CO2 값에 따른 상태 판정"""
+    """CO2 값에 따른 상태 판정 + LED 색상 변경"""
     if co2 < WARN:
         set_all(0, 50, 0)
         return "GOOD"
@@ -280,9 +220,8 @@ def get_status(co2):
 
 def draw_bar(oled, co2):
     """CO2 농도를 막대 그래프로 표시"""
-    # 막대 너비 계산 (0~2000ppm → 0~120px)
     bar_width = min(int(co2 / 2000 * 120), 120)
-    oled.rect(4, 50, 120, 10, 1)         # 테두리
+    oled.rect(4, 50, 120, 10, 1)          # 테두리
     oled.fill_rect(4, 50, bar_width, 10, 1)  # 채움
 
 # --- 메인 루프 ---
@@ -307,54 +246,109 @@ while True:
     time.sleep(2)
 ```
 
-**[시각 자료: OLED 화면]**
+:::note[코드 읽어보기]
+I2C 포트를 2개 사용합니다. `I2C(1, ...)`은 I2C1 포트(SCD30 연결), `I2C(0, ...)`은 I2C0 포트(OLED 연결)입니다. `draw_bar()` 함수는 CO2 농도를 120px 너비의 막대 그래프로 변환합니다. 2000ppm이 꽉 차는 기준이며, `WARN`과 `BAD` 값을 교실 상황에 맞게 바꿔보세요.
+:::
 
-```
-┌────────────────────────┐
-│    CO2 Monitor         │
-│  CO2: 1234 ppm         │
-│  T:23.4C H:45%         │
-│  WARN - Ventilate?     │
-│  ┌──────────────────┐  │
-│  │████████████       │  │
-│  └──────────────────┘  │
-└────────────────────────┘
-```
+  </TabItem>
+</Tabs>
 
-**[예상 Q&A]**
+---
 
-Q: "교실에서 실제로 1500 넘는 경우가 있나요?"
-A: "자주 있어요! 30명이 1시간 동안 창문 닫고 수업하면 2000ppm 넘는 경우도 있어요. 실제로 이 센서로 측정해보면 깜짝 놀랄 거예요."
+{/* 섹션 E: 와우 모먼트 */}
 
-Q: "CO2가 높으면 왜 졸려요?"
-A: "CO2 자체가 독성이 있는 건 아니에요. 하지만 CO2가 높다는 건 환기가 안 되고 있다는 뜻이고, 상대적으로 산소 비율이 낮아져서 뇌에 산소 공급이 줄어 졸리는 거예요."
+## 잠깐, 방금 무슨 일이 일어난 걸까요?
 
-Q: "SCD30은 MQ2보다 왜 비싸요?"
-A: "측정 원리가 다릅니다. MQ2는 금속산화물의 저항 변화를 보는 저가형이고, SCD30은 NDIR(비분산적외선) 방식으로 CO2 분자가 적외선을 흡수하는 양을 측정해요. 훨씬 정확하지만 부품이 복잡해요."
+여러분이 방금 한 일을 다시 생각해보세요.
 
-:::tip[SCD30 vs MQ2 비교]
-- **MQ2**: 금속산화물 저항 변화, 저가형, 정성적 측정 ("가스가 있다/없다")
-- **SCD30**: NDIR(비분산적외선) 방식, 고가형, 정량적 측정 ("CO2가 1234ppm이다")
+교실 공기 속의 **CO2 분자**가
+**->** SCD30 내부에서 적외선을 **흡수**하고 (NDIR 방식)
+**->** 흡수량이 **ppm 농도**로 계산되어 I2C로 Pico에 전달되고
+**->** 코드가 농도에 따라 **상태를 판정**하고 (GOOD / WARN / BAD)
+**->** LED가 **색상**으로, OLED가 **숫자와 그래프**로 동시에 알려주었습니다.
 
-정확한 수치가 필요한 환경 모니터링에는 SCD30 같은 고정밀 센서가 필수입니다.
+"환기해야 할 것 같아"라는 주관적 감각이, ppm 단위의 객관적 데이터로 바뀌었습니다. 학교, 사무실, 카페에 설치된 공기질 모니터가 바로 이 원리입니다.
+
+### CO2 환기 판단 로직
+
+<Mermaid chart={`flowchart TD
+    A[SCD30에서 CO2 읽기] --> B{"CO2 < 1000ppm?"}
+    B -- Yes --> C["GOOD (초록)
+    환기 불필요"]
+    B -- No --> D{"CO2 < 1500ppm?"}
+    D -- Yes --> E["WARN (노랑)
+    환기 권장"]
+    D -- No --> F["BAD (빨강)
+    즉시 환기!"]
+    C --> G[OLED 표시 + LED 색상]
+    E --> G
+    F --> G
+    G --> H[2초 대기]
+    H --> A
+`} />
+
+---
+
+{/* 섹션 F: 데이터/통계 활동 */}
+
+## 데이터로 생각하기
+
+환기 실험 결과를 기록하고 분석해봅시다.
+
+#### CO2 변화 기록표
+
+창문을 닫은 상태에서 시작하여, 중간에 창문을 열고, 다시 닫는 실험을 해보세요.
+
+| 시간 (분) | CO2 (ppm) | 온도 (C) | 습도 (%) | 상태 | 비고 |
+|-----------|-----------|----------|----------|------|------|
+| 0 (시작) | | | | | 창문 닫힘 |
+| 2 | | | | | |
+| 4 | | | | | |
+| 6 | | | | | 창문 열기 |
+| 8 | | | | | |
+| 10 | | | | | |
+| 12 | | | | | 창문 닫기 |
+| 14 | | | | | |
+
+기록표를 채운 뒤 다음 질문에 답해보세요.
+
+1. **창문을 열기 전 최고 CO2**는 몇 ppm이었나요?
+2. **창문을 연 후 최저 CO2**는 몇 ppm이었나요?
+3. **CO2가 1000ppm 아래로 내려가는 데** 몇 분 걸렸나요?
+4. 이 결과를 바탕으로, "수업 중 몇 분마다 환기하면 좋을지" 제안해보세요.
+
+:::note[CO2와 집중력]
+연구에 따르면 CO2 1500ppm 이상에서 의사결정 능력이 저하되기 시작합니다. 수업 중 졸린 게 꼭 수업 내용 때문만은 아닐 수 있습니다. CO2가 높다는 것은 환기가 부족하다는 뜻이고, 상대적으로 산소 비율이 낮아져 뇌에 산소 공급이 줄어들기 때문입니다.
 :::
 
 ---
 
-### 정리 (40-50분)
+{/* 섹션 G: 마무리 */}
 
-**[강의 스크립트]**
+## 마무리
 
-선생님: "이 시스템을 교실에 설치하면 어떨까요? 수업 중에 LED가 노란색으로 바뀌면 '쉬는 시간에 창문 열자'가 되고, 빨간색이면 '지금 당장 열자'가 되는 거죠."
+### 오늘 배운 것
 
-선생님: "3차시에서 만든 전자담배 검출기와 비교해보세요. 구조가 똑같죠? 센서→판단→출력. 센서만 MQ2에서 SCD30으로 바뀌고, 임계값만 바뀐 거예요. 이 패턴을 기억하세요!"
+- **SCD30 센서**: NDIR 방식으로 CO2 농도를 ppm 단위로 정확히 측정하는 센서를 사용했습니다.
+- **이중 I2C 포트 활용**: I2C1에 SCD30, I2C0에 OLED를 연결하여 두 I2C 장치를 동시에 사용했습니다.
+- **이중 출력 시스템**: LED(색상 경보)와 OLED(수치 + 그래프)로 같은 데이터를 두 가지 방식으로 표현했습니다.
+- **임계값 설계**: WARN, BAD 기준을 설정하여 단계별 판단 로직을 구현했습니다.
+
+### 다음 시간 미리보기
+
+:::tip[8차시 "절전형 가스 경보기"]
+다음 시간에는 **PIR + MQ2 + LED**를 조합하여, 사람이 있을 때만 가스를 측정하는 절전형 경보기를 만듭니다. **상태 머신** 개념으로 SLEEP, ACTIVE, ALERT 세 가지 상태를 설계하고, 3개 부품을 통합하는 시스템을 경험합니다.
+:::
 
 ---
 
-## 코드 파일 목록
+{/* 섹션 H: 체크리스트 */}
 
-| 파일명 | 설명 | 난이도 |
-|--------|------|--------|
-| `step1_co2_read.py` | SCD30 CO2 읽기 기본 | ★☆☆ |
-| `step2_co2_led.py` | CO2 농도별 LED 색상 경보 | ★★☆ |
-| `step3_co2_dashboard.py` | OLED 대시보드 + LED 통합 | ★★☆ |
+## 자기 점검 체크리스트
+
+- [ ] SCD30을 I2C1, OLED를 I2C0, LED Stick을 D16에 연결했다
+- [ ] 기본 코드로 CO2 농도(ppm)를 확인했다
+- [ ] 입김 테스트로 CO2 급상승을 관찰했다
+- [ ] 도전 코드로 OLED 대시보드 + LED 경보를 작동시켰다
+- [ ] CO2 변화 기록표를 작성했다
+- [ ] (도전) 임계값(WARN, BAD)을 교실 상황에 맞게 조절해봤다

@@ -1,145 +1,184 @@
 ---
-title: "10차시: 고도 측정기 - BME280 + OLED + LED Stick"
-description: "기압 변화로 고도를 추정하고 OLED와 LED로 시각화하며, 기준점 보정(calibration) 개념을 학습합니다."
+title: "10차시: 고도 측정기"
+description: "BME280의 기압 데이터로 고도를 추정하고, OLED와 LED로 실시간 고도계를 만들어봅니다."
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 import Mermaid from '../../../components/Mermaid';
+import GroveShieldMap from '../../../components/grove/GroveShieldMap';
+import GroveConnectorTip from '../../../components/grove/GroveConnectorTip';
+import VirtualWiring from '../../../components/grove/VirtualWiring';
+
+{/* 섹션 A: 헤더 */}
 
 <p style="color: var(--sl-color-gray-3); margin-bottom: 0.25rem;">인피컴 프로젝트 &gt; 심화 통합 프로젝트 &gt; 10차시</p>
 
-# 고도 측정기 -- BME280 + OLED + LED Stick
+# 고도 측정기
 
-> **오늘의 질문:** "엘리베이터 안에서 고도를 측정할 수 있을까?"
+> **오늘의 질문:** "기압 센서 하나로 내가 몇 층에 있는지 알 수 있을까?"
 
 <p style="color: var(--sl-color-gray-3);">
-50분 | 교사 시연 + 모둠 순환 체험 (부품 1세트) | 난이도 ●●●○○
+50분 | BME280 + OLED + RGB LED Stick | 난이도 ●●●○○
 </p>
 
 ---
 
-## 기본 정보
+{/* 섹션 B: 준비물 */}
 
-| 항목 | 내용 |
-|------|------|
-| 주제 | 기압 변화로 고도를 추정하고 시각화하기 |
-| 시간 | 50분 (1교시) |
-| 형태 | 교사 시연 + 모둠 순환 체험 (부품 1세트) |
-| 준비물 | Pico 2 WH + Grove Shield, Grove BME280, Grove OLED 0.96", Grove RGB LED Stick, USB 케이블, AA 배터리홀더 |
-| 선수학습 | 4차시 (BME280, I2C), 9차시 (매핑) |
+## 준비물
 
-## 학습목표
+| 준비물 | 설명 |
+|--------|------|
+| Raspberry Pi Pico 2 WH | MicroPython이 동작하는 마이크로컨트롤러입니다. |
+| Grove Shield for Pi Pico | Pico 위에 올려 꽂는 확장 보드입니다. |
+| Grove 케이블 (4핀) | 센서와 Shield를 연결하는 케이블입니다. 3개 필요합니다. |
+| BME280 센서 | 온도, 습도, 기압을 동시에 측정하는 I2C 센서입니다. 오늘은 **기압** 데이터를 핵심으로 활용합니다. |
+| OLED 디스플레이 (0.96") | 128x64 픽셀의 작은 화면으로, 고도와 층수를 표시합니다. I2C 방식으로 통신합니다. |
+| RGB LED Stick (10 LED) | 10개의 RGB LED가 일렬로 달린 모듈입니다. 층수 표시기로 활용합니다. |
+| Micro USB 케이블 | Pico와 컴퓨터를 연결하여 전원을 공급하고 코드를 전송합니다. |
 
-1. 기압과 고도의 관계를 이해하고 수식으로 표현할 수 있다
-2. 기준점 보정(calibration) 개념을 이해할 수 있다
-3. 실시간 데이터를 OLED와 LED로 동시에 표시할 수 있다
+### 연결 방법
 
----
+BME280을 **I2C1 포트**에, OLED를 **I2C0 포트**에, RGB LED Stick을 **D16 포트**에 연결하세요.
 
-## 50분 타임라인
+:::tip[Grove 커넥터 안내]
+4핀 커넥터라 방향이 정해져 있어서, 홈에 맞춰 끝까지 밀어 넣으면 됩니다.
+:::
 
-```
-[도입: 5분]
-└─ 00-05분: "엘리베이터 안에서 고도를 측정할 수 있을까?"
+:::note[포트 확인]
+BME280과 OLED는 모두 I2C 장치이지만, **서로 다른 I2C 포트**에 연결합니다. BME280은 I2C1, OLED는 I2C0입니다. I2C 주소가 다르면 같은 버스에 연결할 수도 있지만, 오늘은 포트를 나누어 안정성을 높입니다.
+:::
 
-[실습 1: 15분] 기압→고도 변환
-├─ 05-12분: 과학 배경 + 고도 공식
-└─ 12-20분: step1 – 기압으로 고도 계산
+### 보드 포트 맵
 
-[실습 2: 20분] 고도 시각화
-├─ 20-30분: step2 – OLED 고도계 + 기준점 보정
-└─ 30-40분: step3 – LED 층수 표시기 (계단 실험용)
+아래 보드에서 **I2C1**, **I2C0**, **D16** 포트의 위치를 확인하세요.
 
-[정리: 10분]
-├─ 40-45분: 계단 실험 결과 공유
-└─ 45-50분: 정리
-```
+<GroveShieldMap
+  client:load
+  activePort="I2C1"
+  connectedSensors={[{ port: 'I2C1', sensorName: 'BME280' }, { port: 'I2C0', sensorName: 'OLED' }, { port: 'D16', sensorName: 'RGB LED Stick' }]}
+/>
 
----
+<GroveConnectorTip client:load />
 
-## 상세 수업 진행
+### 연결 연습
 
-### 도입 (00-05분)
+센서 카드를 클릭한 후, 보드의 올바른 포트를 클릭하여 연결해보세요.
 
-**[강의 스크립트]**
-
-선생님: "비행기 타면 귀가 먹먹해지죠? 그게 기압 변화 때문이에요. 높이 올라가면 기압이 낮아지거든요."
-
-선생님: "BME280이 기압을 측정할 수 있잖아요. 그러면 기압 변화로 '내가 몇 층에 있는지' 알 수 있지 않을까요?"
-
-<Mermaid client:load chart={`
-graph TD
-    A["해수면<br/>1013 hPa / 0m"] --> B["1층 (기준점)<br/>1013 hPa / 0m"]
-    B -->|"약 0.12 hPa/m 감소"| C["5층<br/>1011.4 hPa / ~13m"]
-    C -->|"약 0.12 hPa/m 감소"| D["옥상<br/>1009.2 hPa / ~32m"]
-    style A fill:#4682b4,stroke:#333,color:#fff
-    style B fill:#2e8b57,stroke:#333,color:#fff
-    style C fill:#daa520,stroke:#333,color:#000
-    style D fill:#ff6347,stroke:#333,color:#fff
-`} caption="기압 → 고도 변환 흐름도: 기압이 0.12 hPa 떨어지면 약 1m 상승" />
-
-```
-고도와 기압의 관계:
-
-해수면  1013 hPa  ─── 0m
-  │
-1층     1013 hPa  ─── 0m (기준점)
-  │      ↓ 약 0.12 hPa/m 감소
-5층     1011.4 hPa ─── ~13m
-  │
-옥상    1009.2 hPa ─── ~32m
-
-기압이 0.12 hPa 떨어지면 ≈ 1m 상승!
-```
+<VirtualWiring
+  client:load
+  title="10차시: BME280 + OLED + LED Stick 연결하기"
+  sensors={[
+    { id: 'bme280', name: 'BME280 (온습도기압)', correctPort: 'I2C1', portType: 'I2C', hint: 'BME280은 I2C1 포트에 연결합니다' },
+    { id: 'oled', name: 'OLED 디스플레이', correctPort: 'I2C0', portType: 'I2C', hint: 'OLED는 I2C0 포트에 연결합니다' },
+    { id: 'ledstick', name: 'RGB LED Stick', correctPort: 'D16', portType: '디지털', hint: 'LED Stick은 디지털 포트에 연결합니다' },
+  ]}
+/>
 
 ---
 
-### 실습 1: 기압 -> 고도 변환 (05-20분)
+{/* 섹션 C: 단계별 활동 가이드 */}
 
-<Mermaid client:load chart={`
-graph LR
-    subgraph 보정 Calibration
-        S1["시작 시 10회 측정"] --> S2["평균 기압 계산"]
-        S2 --> S3["기준점 = 0m 설정"]
-    end
-    subgraph 실시간 측정
-        M1["현재 기압 측정"] --> M2["calc_altitude( )"]
-        M2 --> M3["상대 고도 = 현재 - 기준"]
-        M3 --> M4["층수 = 고도 / 3.0"]
-    end
-    S3 -.->|"base_altitude"| M3
-`} caption="보정(calibration) 개념: 현재 위치를 기준점(0m)으로 설정한 뒤 상대 고도를 계산" />
+## 활동 가이드
 
-**[코드: step1_altitude.py]**
+### Step 1. 연결하기 (5분)
+
+1. **Pico 2 WH가 Grove Shield 위에 올려져 있는지 확인합니다.**
+2. **BME280 → I2C1**, **OLED → I2C0**, **RGB LED Stick → D16** 에 각각 연결합니다.
+3. **Micro USB 케이블로 컴퓨터와 연결합니다.**
+
+:::tip
+OLED 화면은 연결하자마자 켜지지 않습니다. 코드가 실행되어야 화면에 내용이 표시됩니다.
+:::
+
+### Step 2. 기압과 고도의 관계 이해하기 (10분)
+
+높이 올라가면 기압이 낮아집니다. 이 관계를 수식으로 표현하면 기압 데이터만으로 고도를 추정할 수 있습니다.
+
+<Mermaid
+  client:load
+  chart={`
+flowchart TD
+    A["BME280 기압 측정\n예: 1013.2 hPa"] --> B["기준점 보정\n현재 위치 = 0m"]
+    B --> C["고도 공식 적용\n44330 × (1 - (P/P0)^0.19)"]
+    C --> D["상대 고도 계산\n예: +3.2m"]
+    D --> E["층수 변환\n1층 ≈ 3m"]
+    E --> F["OLED 표시\nFloor: +1.1"]
+    E --> G["LED 표시\n해당 층 LED 점등"]
+  `}
+  caption="기압에서 층수까지의 변환 흐름"
+/>
+
+핵심은 **기준점 보정**입니다. 시작할 때 현재 기압을 측정해서 0m로 설정하면, 그 다음부터는 기압 변화만으로 상대 고도를 계산할 수 있습니다.
+
+:::note[기압과 고도]
+기압이 약 0.12 hPa 떨어지면 약 1m 올라간 것입니다. 1층(약 3m)을 오르면 기압이 약 0.36 hPa 떨어집니다. BME280은 이 미세한 변화를 감지할 수 있습니다.
+:::
+
+### Step 3. 기본 고도계 실행하기 (15분)
+
+1. Thonny를 열고 아래 [기본 코드](#기본-코드)를 입력합니다.
+2. **실행 전 5초간 Pico를 움직이지 마세요.** 기준점 보정이 진행됩니다.
+3. Shell 창에 기압, 상대 고도, 층수가 출력되는지 확인하세요.
+4. **Pico를 들고 높이 들어올려 보세요.** 고도가 변하나요?
+
+:::note[생각해보기]
+책상 위와 바닥에서 고도 차이가 나타나나요? 의자 위에 올라서면 어떤가요? BME280이 감지할 수 있는 최소 높이 변화는 얼마일까요?
+:::
+
+### Step 4. 계단 실험하기 (20분)
+
+[도전 코드](#도전-코드-oled-고도계--led-층수-표시기)를 실행하여 OLED와 LED가 동시에 동작하는 고도계를 만든 후, 계단을 오르내리며 실험합니다.
+
+1. **도전 코드**를 Thonny에 입력하고 실행합니다.
+2. Pico를 들고 **계단을 1층 올라가 보세요.** OLED에 표시되는 층수를 확인합니다.
+3. 다시 내려오면 0층으로 돌아오는지 확인합니다.
+
+#### 계단 실험 기록표
+
+| 실제 위치 | OLED 표시 층수 | OLED 표시 고도 (m) | LED 위치 | 오차 |
+|-----------|---------------|-------------------|----------|------|
+| 출발점 (0층) | | | | |
+| 1층 위 | | | | |
+| 2층 위 | | | | |
+| 다시 출발점 | | | | |
+
+---
+
+{/* 섹션 D: 코드 예시 */}
+
+## 코드
+
+<Tabs>
+  <TabItem label="기본 코드">
+
+### 기본 코드
+
 ```python
-# === 기압으로 고도 계산 ===
-# 바로미터 공식으로 상대 고도 추정
-
 from machine import I2C, Pin
 import bme280
 import time
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
-bme = bme280.BME280(i2c=i2c)
+# --- 하드웨어 설정 ---
+i2c1 = I2C(1, sda=Pin(6), scl=Pin(7))   # Grove I2C1 (BME280)
+bme = bme280.BME280(i2c=i2c1)
 
 # --- 고도 계산 함수 ---
 def calc_altitude(pressure_hpa, sea_level=1013.25):
-    """기압(hPa)으로 고도(m) 추정
-    국제 기압-고도 공식 (간략 버전)"""
+    """기압(hPa)으로 고도(m) 추정"""
     return 44330.0 * (1.0 - (pressure_hpa / sea_level) ** 0.1903)
 
 # --- 기준점 보정 ---
-# 현재 위치의 기압을 기준(0m)으로 설정
 print("기준점 보정 중... 5초간 가만히 계세요.")
 total = 0
 for i in range(10):
-    p_str = bme.values[1]  # "1013.25hPa"
-    p = float(p_str[:-3])  # 숫자만 추출
+    p_str = bme.values[1]       # "1013.25hPa"
+    p = float(p_str[:-3])       # 숫자만 추출
     total += p
     time.sleep(0.5)
 base_pressure = total / 10
 base_altitude = calc_altitude(base_pressure)
 print(f"기준 기압: {base_pressure:.2f} hPa")
-print(f"기준 고도: {base_altitude:.1f} m")
 
 # --- 실시간 측정 ---
 print("\n=== 고도 측정 시작 ===")
@@ -149,49 +188,44 @@ while True:
     p_str = bme.values[1]
     pressure = float(p_str[:-3])
     altitude = calc_altitude(pressure)
-    relative = altitude - base_altitude  # 기준점 대비 상대 고도
+    relative = altitude - base_altitude
+    floor_num = relative / 3.0
 
-    floor = relative / 3.0  # 1층 ≈ 3m로 가정
-
-    print(f"기압: {pressure:.1f}hPa | 상대고도: {relative:+.1f}m | 약 {floor:+.1f}층")
+    print(f"기압: {pressure:.1f}hPa | 상대고도: {relative:+.1f}m | 약 {floor_num:+.1f}층")
     time.sleep(1)
 ```
 
-선생님: "핵심은 '기준점 보정'이에요. 시작할 때 현재 기압을 측정해서 0m로 놓는 거예요. 그 다음부터는 기압 변화만으로 몇 미터 올라갔는지 계산해요."
+### 줄별 해설
 
-**[예상 Q&A]**
+| 줄 | 코드 | 설명 |
+|----|------|------|
+| 6 | `I2C(1, sda=Pin(6), scl=Pin(7))` | Grove Shield의 I2C1 포트에 연결된 BME280을 사용합니다. |
+| 11 | `44330.0 * (1.0 - ...)` | 국제 기압-고도 공식입니다. 대기의 온도와 밀도를 고려한 근사식으로, 외울 필요 없이 함수로 사용하면 됩니다. |
+| 16~22 | 기준점 보정 블록 | 10번 측정의 평균을 기준 기압으로 설정합니다. 여러 번 측정하면 오차가 줄어듭니다. |
+| 19 | `p_str[:-3]` | `"1013.25hPa"`에서 마지막 3글자(`hPa`)를 제거하고 숫자만 추출합니다. |
+| 31 | `relative / 3.0` | 상대 고도를 층수로 변환합니다. 일반 건물 1층 높이가 약 3m입니다. |
 
-:::tip[44330이라는 숫자는 어디서 나온 거예요?]
-국제 기압-고도 공식에서 나온 상수예요. 대기의 온도와 밀도를 고려해서 유도된 값이에요. 외울 필요 없고, 이런 공식이 있다는 것만 알면 돼요.
-:::
+  </TabItem>
+  <TabItem label="도전 코드">
 
-:::note[1층이 정확히 3m인가요?]
-건물마다 달라요. 일반 건물은 2.7~3.3m, 상가는 4~5m. 우리 학교 층고를 직접 재서 넣으면 더 정확해져요.
-:::
+### 도전 코드: OLED 고도계 + LED 층수 표시기
 
-:::caution[날씨가 변하면 기압도 변합니다]
-맞아요! 그래서 시작할 때 보정하는 거예요. 장시간 사용하면 날씨 변화로 오차가 생겨요. 전문 장비는 GPS와 함께 써서 보정합니다.
-:::
+OLED에 기압, 고도, 층수를 표시하고, LED Stick으로 현재 층을 시각적으로 나타냅니다.
 
----
-
-### 실습 2: 고도 시각화 (20-40분)
-
-#### OLED 고도계 (20-30분)
-
-**[코드: step2_altimeter_oled.py]**
 ```python
-# === OLED 고도계 ===
-# 기압, 상대 고도, 층수를 OLED에 표시
-
 from machine import I2C, Pin
+from neopixel import NeoPixel
 import ssd1306
 import bme280
 import time
 
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
-bme = bme280.BME280(i2c=i2c)
-oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+# --- 하드웨어 설정 ---
+i2c1 = I2C(1, sda=Pin(6), scl=Pin(7))   # Grove I2C1 (BME280)
+i2c0 = I2C(0, sda=Pin(8), scl=Pin(9))   # Grove I2C0 (OLED)
+bme = bme280.BME280(i2c=i2c1)
+oled = ssd1306.SSD1306_I2C(128, 64, i2c0)
+NUM_LEDS = 10
+np = NeoPixel(Pin(16), NUM_LEDS)          # Grove D16
 
 def calc_altitude(p, sea=1013.25):
     return 44330.0 * (1.0 - (p / sea) ** 0.1903)
@@ -205,8 +239,26 @@ total = 0
 for _ in range(10):
     total += float(bme.values[1][:-3])
     time.sleep(0.5)
-base_p = total / 10
-base_alt = calc_altitude(base_p)
+base_alt = calc_altitude(total / 10)
+
+def update_floor_led(floor_num):
+    """층수에 따라 LED 표시"""
+    for i in range(NUM_LEDS):
+        np[i] = (0, 0, 0)
+
+    led_idx = max(0, min(9, int(floor_num + 0.5)))
+
+    if led_idx < 4:
+        np[led_idx] = (0, 0, 200)      # 저층: 파랑
+    elif led_idx < 7:
+        np[led_idx] = (0, 200, 0)      # 중층: 초록
+    else:
+        np[led_idx] = (200, 0, 0)      # 고층: 빨강
+
+    for j in range(led_idx):
+        np[j] = (10, 10, 10)           # 궤적 표시
+
+    np.write()
 
 # --- 메인 ---
 while True:
@@ -214,6 +266,8 @@ while True:
     t = bme.values[0]
     alt = calc_altitude(p) - base_alt
     floor_num = alt / 3.0
+
+    update_floor_led(floor_num)
 
     oled.fill(0)
     oled.text("= Altimeter =", 15, 0)
@@ -223,150 +277,77 @@ while True:
     oled.text(f"Temp: {t}", 0, 56)
     oled.show()
 
-    time.sleep(1)
-```
-
-#### LED 층수 표시기 (30-40분)
-
-<Mermaid client:load chart={`
-graph TD
-    subgraph 시스템 구성도
-        BME["BME280<br/>기압 센서"] -->|I2C 0x76| PICO["Pico 2 WH"]
-        OLED["OLED 0.96인치<br/>고도/층수 표시"] -->|I2C 0x3C| PICO
-        LED["RGB LED Stick<br/>10 LED 층수 표시"] -->|GPIO 16| PICO
-        BAT["AA 배터리홀더<br/>휴대용 전원"] --> PICO
-    end
-    subgraph 데이터 흐름
-        PICO --> CALC["고도 계산"]
-        CALC --> VIS1["OLED: 숫자 표시<br/>기압/고도/층수/온도"]
-        CALC --> VIS2["LED: 시각 표시<br/>층수에 따라 점등"]
-    end
-`} caption="시스템 구성도: BME280 + OLED + LED Stick으로 구성된 휴대용 고도계" />
-
-**[코드: step3_floor_indicator.py]**
-```python
-# === LED 층수 표시기 ===
-# 층수에 따라 LED가 하나씩 켜짐 (계단 실험용)
-
-from machine import I2C, Pin
-from neopixel import NeoPixel
-import ssd1306
-import bme280
-import time
-
-i2c = I2C(0, sda=Pin(8), scl=Pin(9))
-bme = bme280.BME280(i2c=i2c)
-oled = ssd1306.SSD1306_I2C(128, 64, i2c)
-NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS)
-
-def calc_altitude(p, sea=1013.25):
-    return 44330.0 * (1.0 - (p / sea) ** 0.1903)
-
-# --- 기준점 보정 ---
-total = 0
-for _ in range(10):
-    total += float(bme.values[1][:-3])
-    time.sleep(0.5)
-base_alt = calc_altitude(total / 10)
-
-def update_floor_led(floor_num):
-    """층수에 따라 LED 표시
-    0층=LED 0 (파랑), 5층=LED 5 (초록), 지하=꺼짐"""
-    for i in range(NUM_LEDS):
-        np[i] = (0, 0, 0)
-
-    # 현재 층에 해당하는 LED 켜기
-    led_idx = max(0, min(9, int(floor_num + 0.5)))
-
-    # 높이에 따라 파랑→초록→빨강
-    if led_idx < 4:
-        np[led_idx] = (0, 0, 200)     # 저층: 파랑
-    elif led_idx < 7:
-        np[led_idx] = (0, 200, 0)     # 중층: 초록
-    else:
-        np[led_idx] = (200, 0, 0)     # 고층: 빨강
-
-    # 이전 층까지 흐릿하게 표시 (궤적)
-    for j in range(led_idx):
-        np[j] = (10, 10, 10)
-
-    np.write()
-
-# --- 메인 ---
-print("=== 층수 표시기 ===")
-print("배터리 연결 후 계단을 오르내려 보세요!")
-
-while True:
-    p = float(bme.values[1][:-3])
-    alt = calc_altitude(p) - base_alt
-    floor_num = alt / 3.0
-
-    update_floor_led(floor_num)
-
-    # OLED 표시
-    oled.fill(0)
-    oled.text(f"Floor: {floor_num:+.1f}", 0, 0)
-    oled.text(f"Alt: {alt:+.1f}m", 0, 16)
-
-    # 간이 건물 그림
-    for f in range(5):
-        y = 60 - f * 10
-        oled.rect(80, y, 40, 10, 1)
-        if int(floor_num + 0.5) == f:
-            oled.fill_rect(82, y + 2, 36, 6, 1)
-
-    oled.show()
     time.sleep(0.5)
 ```
 
-**[수업 장면: 계단 실험]**
-
-선생님: "배터리홀더 연결하고, Pico를 들고 계단을 올라가 봅시다. 복도에서 1층 올라가면 LED가 한 칸 올라갈 거예요."
-
-(학생이 계단을 오르며)
-학생: "1층 올라갔는데 진짜 LED가 바뀌었어요!"
-선생님: "OLED에 뭐라고 나와요?"
-학생: "Floor: +1.2!"
-선생님: "대단해요! 기압 센서 하나로 만든 고도계가 실제로 작동하네요!"
-
-**[예상 Q&A]**
-
-:::note[오차가 좀 있어요]
-정상이에요. BME280의 기압 정밀도가 +-1 hPa 정도인데, 이게 약 +-8m 오차에 해당해요. 대략적인 층수 파악 용도로 사용하세요.
+:::note[코드 읽어보기]
+`update_floor_led` 함수는 현재 층에 해당하는 LED 하나를 밝게 켜고, 그 아래 LED들은 흐릿하게 켜서 궤적을 보여줍니다. 저층은 파랑, 중층은 초록, 고층은 빨강으로 색이 바뀝니다. 학교 건물의 실제 층고를 알면 `alt / 3.0`의 3.0을 바꿔보세요.
 :::
 
-:::tip[엘리베이터에서도 되나요?]
-네! 엘리베이터가 더 극적인 변화를 보여줘요. 밀폐 공간이라 기압 변화가 명확하거든요.
+  </TabItem>
+</Tabs>
+
+---
+
+{/* 섹션 E: 와우 모먼트 */}
+
+## 잠깐, 방금 무슨 일이 일어난 걸까요?
+
+여러분이 방금 한 일을 다시 생각해보세요.
+
+공기의 무게(기압)가
+**→** BME280에서 **hPa 숫자**로 측정되고
+**→** 기준점과의 **차이**를 구하고
+**→** 국제 기압-고도 공식으로 **미터 단위 높이**로 변환하고
+**→** 3m로 나누어 **층수**를 추정하고
+**→** OLED와 LED로 **눈에 보이게** 표시했습니다.
+
+비행기의 고도계, 스마트워치의 층수 측정, 등산앱의 고도 표시 — 모두 이 원리의 확장입니다. 같은 BME280 센서를 9차시에는 온도→색상에, 오늘은 기압→고도에 사용했습니다. **같은 센서, 다른 해석, 전혀 다른 프로젝트** — 이것이 데이터 활용의 힘입니다.
+
+---
+
+{/* 섹션 F: 데이터/통계 활동 */}
+
+## 데이터로 생각하기
+
+계단 실험 기록표의 데이터를 분석해보세요.
+
+1. 1층을 올라갔을 때 **기압은 몇 hPa 변했나요?**
+2. OLED에 표시된 층수와 **실제 층수의 오차**는 얼마인가요?
+3. 출발점으로 돌아왔을 때 고도가 **정확히 0m인가요?** 아니라면 왜 그럴까요?
+4. **오차를 줄이려면** 어떤 방법이 있을까요?
+
+:::note[보정(Calibration)의 중요성]
+기준점 보정을 하지 않으면, 해수면 기준 고도가 나옵니다. 날씨가 바뀌면 기압도 바뀌므로, 장시간 사용하면 오차가 커집니다. 전문 고도계는 GPS와 함께 써서 주기적으로 보정합니다. **모든 측정에는 기준이 필요하고, 기준을 어떻게 잡느냐가 정확도를 결정합니다.**
 :::
 
 ---
 
-### 정리 (40-50분)
+{/* 섹션 G: 마무리 */}
 
-```
-같은 센서(BME280), 다른 활용:
+## 마무리
 
-4차시: 온도·습도·기압 → OLED 기상 스테이션
-9차시: 온도 → LED Strip 색상 시각화
-10차시: 기압 → 고도 추정 + 층수 표시
+### 오늘 배운 것
 
-하나의 센서에서 어떤 데이터를 '어떻게 해석하느냐'가
-프로젝트의 방향을 결정합니다.
+- **기압→고도 변환**: 기압이 낮아지면 고도가 높아지는 원리를 수식으로 구현했습니다.
+- **기준점 보정(Calibration)**: 현재 위치를 0m로 설정하여 상대 고도를 계산하는 방법을 배웠습니다.
+- **멀티 출력**: OLED(숫자)와 LED(시각적)를 동시에 활용하여 데이터를 두 가지 방식으로 표현했습니다.
+- **같은 센서, 다른 활용**: BME280 하나로 온도 시각화(9차시)와 고도계(10차시)를 모두 만들었습니다.
 
-이것이 '문제 정의'의 힘!
-```
+### 다음 시간 미리보기
 
-:::caution[핵심 정리]
-같은 BME280 센서라도 온도 데이터를 사용하면 시각화 조명(9차시), 기압 데이터를 사용하면 고도계(10차시)가 됩니다. **데이터를 어떻게 해석하느냐**가 프로젝트의 방향을 결정합니다.
+:::tip[11차시 "교실 환경 대시보드"]
+다음 시간에는 BME280, SCD30, OLED를 모두 합쳐 **6개 데이터를 동시에 표시하는 환경 대시보드**를 만듭니다. 여러 센서의 데이터를 종합 판정하는 IoT 시스템의 핵심을 체험하세요.
 :::
 
 ---
 
-## 코드 파일 목록
+{/* 섹션 H: 체크리스트 */}
 
-| 파일명 | 설명 | 난이도 |
-|--------|------|--------|
-| `step1_altitude.py` | 기압→고도 변환 + 기준점 보정 | ★★☆ |
-| `step2_altimeter_oled.py` | OLED 고도계 대시보드 | ★★☆ |
-| `step3_floor_indicator.py` | LED 층수 표시기 (계단 실험) | ★★★ |
+## 자기 점검 체크리스트
+
+- [ ] BME280을 I2C1에, OLED를 I2C0에, LED Stick을 D16에 연결했다
+- [ ] 기준점 보정 과정을 이해하고, 코드 실행 시 5초간 기다렸다
+- [ ] 기본 코드를 실행하고 기압과 상대 고도를 확인했다
+- [ ] 계단 실험을 하며 층수 변화를 기록했다
+- [ ] (도전) OLED 고도계 + LED 층수 표시기 코드를 실행해봤다
