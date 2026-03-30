@@ -33,7 +33,7 @@
     overlay.innerHTML = `
       <button class="zoom-close" aria-label="닫기">✕</button>
       <div class="zoom-content" onclick="event.stopPropagation()">
-        <img src="${src}" alt="${alt || ''}" style="max-width:100%;height:auto;" />
+        <img src="${src}" alt="${alt || ''}" style="max-width:100%;max-height:85vh;height:auto;object-fit:contain;" />
       </div>
       <span class="zoom-hint">ESC 또는 배경 클릭으로 닫기</span>
     `;

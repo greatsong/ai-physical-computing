@@ -1188,12 +1188,12 @@
 
 .zoom-content {
   position: relative;
-  max-width: 90vw;
-  max-height: 85vh;
+  max-width: 95vw;
+  max-height: 92vh;
   overflow: auto;
   border-radius: 12px;
   background: var(--sl-color-bg, #fff);
-  padding: 1.5rem;
+  padding: 2rem;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
   cursor: default;
 }
@@ -1294,13 +1294,15 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-width: 60vw;
+  width: 92vw;
+  min-height: 80vh;
   padding: 2rem;
 }
 
 .mermaid-zoom-content svg {
-  max-width: 100%;
+  width: 100%;
   height: auto;
+  max-height: 80vh;
 }
 
 /* 머메이드 로딩/에러 */
