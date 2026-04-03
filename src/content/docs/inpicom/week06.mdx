@@ -198,7 +198,7 @@ import time
 
 uart = UART(0, baudrate=9600, tx=Pin(0), rx=Pin(1))
 NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS)
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745))
 
 # --- LED 기본 함수 ---
 def set_all(r, g, b):

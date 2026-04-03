@@ -153,7 +153,7 @@ import time
 pir = Pin(18, Pin.IN)
 gas = ADC(Pin(26))
 NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS)
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745))
 
 # --- 상태 정의 ---
 STATE_SLEEP  = "SLEEP"
@@ -237,7 +237,7 @@ import time
 pir = Pin(18, Pin.IN)
 gas = ADC(Pin(26))
 NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS)
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745))
 
 # --- 설정 ---
 GAS_WARN = 20000

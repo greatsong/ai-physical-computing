@@ -137,7 +137,7 @@ import time
 
 # --- LED 설정 ---
 NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS)
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745))
 
 # --- 색상 사전 ---
 RED    = (255, 0, 0)
@@ -173,7 +173,7 @@ print("끝!")
 | 줄 | 코드 | 설명 |
 |----|------|------|
 | 5 | `from neopixel import NeoPixel` | NeoPixel은 LED를 개별 제어하는 프로토콜입니다. MicroPython에 기본 내장되어 있습니다. |
-| 10 | `NeoPixel(Pin(16), NUM_LEDS)` | GP16 핀에 연결된 10개짜리 LED를 제어하겠다는 뜻입니다. D16 포트가 GP16에 연결되어 있습니다. |
+| 10 | `NeoPixel(Pin(16), NUM_LEDS, timing=(...))` | GP16 핀에 연결된 10개짜리 LED를 제어하겠다는 뜻입니다. D16 포트가 GP16에 연결되어 있습니다. WS2813 LED는 전용 타이밍이 필요합니다. |
 | 24 | `np[i] = color` | i번째 LED에 (R, G, B) 색상을 넣습니다. 0번이 첫 번째, 9번이 마지막입니다. |
 | 25 | `np.write()` | 설정한 색상을 LED에 실제로 전송합니다. 이 줄이 없으면 아무 변화도 없습니다. |
 
@@ -192,7 +192,7 @@ from neopixel import NeoPixel
 import time
 
 NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS)
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745))
 
 # -- 패턴 A: 숨쉬기 (밝아졌다 어두워지는 효과) --
 def breathe(r, g, b, speed=0.03):

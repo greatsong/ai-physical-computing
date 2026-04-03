@@ -248,7 +248,7 @@ co2_sensor = scd30.SCD30(i2c0, addr=0x61)
 co2_sensor.start_continous_measurement()
 oled = ssd1306.SSD1306_I2C(128, 64, i2c1)
 NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS)          # RGB LED Stick (D16)
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745))  # RGB LED Stick (D16)
 
 # --- 임계값 ---
 MQ2_THRESHOLD = 25000

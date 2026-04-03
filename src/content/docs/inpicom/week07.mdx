@@ -195,7 +195,7 @@ oled = ssd1306.SSD1306_I2C(128, 64, i2c0)
 
 # LED Stick은 D16
 NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS)
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745))
 
 # --- CO2 임계값 (ppm) ---
 WARN = 1000

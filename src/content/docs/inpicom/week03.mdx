@@ -144,7 +144,7 @@ import time
 # --- 하드웨어 설정 ---
 gas_sensor = ADC(Pin(26))        # A0: MQ2 가스 센서
 NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS) # D16: RGB LED Stick
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745)) # D16: RGB LED Stick
 
 # --- 임계값 설정 ---
 # 먼저 평상시 센서 값을 확인한 뒤 조정하세요
@@ -192,7 +192,7 @@ while True:
 | 줄 | 코드 | 설명 |
 |----|------|------|
 | 9 | `ADC(Pin(26))` | 1차시에서 배운 MQ2 센서 설정입니다. A0 포트(GP26)에서 아날로그 값을 읽습니다. |
-| 11 | `NeoPixel(Pin(16), NUM_LEDS)` | 2차시에서 배운 LED 설정입니다. D16 포트(GP16)에 연결된 10개 LED를 제어합니다. |
+| 11 | `NeoPixel(Pin(16), NUM_LEDS, timing=(...))` | 2차시에서 배운 LED 설정입니다. D16 포트(GP16)에 연결된 10개 LED를 제어합니다. WS2813 전용 타이밍을 지정합니다. |
 | 15-16 | `THRESHOLD_WARN / ALERT` | 임계값(threshold)은 상태를 구분하는 기준선입니다. 환경에 따라 조정이 필요합니다. |
 | 36-42 | `if / elif / else` | 센서 값을 임계값과 비교하여 세 가지 상태로 분류합니다. 위에서부터 순서대로 검사합니다. |
 
@@ -214,7 +214,7 @@ import time
 # --- 하드웨어 설정 ---
 gas_sensor = ADC(Pin(26))
 NUM_LEDS = 10
-np = NeoPixel(Pin(16), NUM_LEDS)
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745))
 
 # --- 임계값 설정 ---
 THRESHOLD_WARN = 20000

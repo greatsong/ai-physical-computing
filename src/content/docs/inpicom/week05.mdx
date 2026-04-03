@@ -181,7 +181,7 @@ import time
 # --- 하드웨어 설정 ---
 pir = Pin(18, Pin.IN)
 NUM_LEDS = 60
-np = NeoPixel(Pin(16), NUM_LEDS)
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745))
 
 # --- 설정값 ---
 AUTO_OFF_SEC = 10   # 감지 없으면 10초 후 소등

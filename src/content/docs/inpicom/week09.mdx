@@ -163,7 +163,7 @@ import time
 i2c = I2C(1, sda=Pin(6), scl=Pin(7))    # Grove I2C1
 bme = bme280.BME280(i2c=i2c)
 NUM_LEDS = 60
-np = NeoPixel(Pin(16), NUM_LEDS)          # Grove D16
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745))  # Grove D16
 
 # --- 핵심 함수: 값 범위 변환 ---
 def map_value(value, in_min, in_max, out_min, out_max):
@@ -209,7 +209,7 @@ while True:
 | 줄 | 코드 | 설명 |
 |----|------|------|
 | 7 | `I2C(1, sda=Pin(6), scl=Pin(7))` | Grove Shield의 I2C1 포트입니다. BME280은 I2C 방식으로 통신합니다. |
-| 10 | `NeoPixel(Pin(16), NUM_LEDS)` | D16 포트에 연결된 60개 LED를 제어합니다. NeoPixel은 LED 하나하나를 개별 제어하는 라이브러리입니다. |
+| 10 | `NeoPixel(Pin(16), NUM_LEDS, timing=(...))` | D16 포트에 연결된 60개 LED를 제어합니다. WS2813 전용 타이밍을 지정합니다. |
 | 14 | `max(in_min, min(in_max, value))` | 입력값이 범위를 벗어나면 최소/최대로 제한합니다. 안전장치 역할입니다. |
 | 20 | `temp_c <= 25` | 25°C를 기준으로 저온 구간(파랑→초록)과 고온 구간(초록→빨강)을 나눕니다. |
 | 35 | `temp_str[:-1]` | BME280이 `"23.4C"` 형태로 반환하므로, 마지막 글자(C)를 제거하고 숫자로 변환합니다. |
@@ -230,7 +230,7 @@ import time
 i2c = I2C(1, sda=Pin(6), scl=Pin(7))
 bme = bme280.BME280(i2c=i2c)
 NUM_LEDS = 60
-np = NeoPixel(Pin(16), NUM_LEDS)
+np = NeoPixel(Pin(16), NUM_LEDS, timing=(280, 515, 515, 745))
 
 TEMP_MIN = 15.0
 TEMP_MAX = 35.0
